@@ -1,121 +1,316 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
-void main() {
-  runApp(const MyApp());
+import 'package:camera/camera.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
+import 'package:image/image.dart' as img;
+
+Future<void> main() async {
+  // Ensure that plugin services are initialized so that `availableCameras()`
+  // can be called before `runApp()`
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Obtain a list of the available cameras on the device.
+  final cameras = await availableCameras();
+
+  // Get a specific camera from the list of available cameras.
+  final firstCamera = cameras[2];
+
+  runApp(
+    MaterialApp(
+      theme: ThemeData.dark(),
+      home: TakePictureScreen(
+        // Pass the appropriate camera to the TakePictureScreen widget.
+        camera: firstCamera,
+      ),
+    ),
+  );
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+// A screen that allows users to take a picture using a given camera.
+class TakePictureScreen extends StatefulWidget {
+  const TakePictureScreen({super.key, required this.camera});
 
-  // This widget is the root of your application.
+  final CameraDescription camera;
+
+  @override
+  TakePictureScreenState createState() => TakePictureScreenState();
+}
+
+class TakePictureScreenState extends State<TakePictureScreen> {
+  late CameraController _controller;
+  late Future<void> _initializeControllerFuture;
+
+  // 掃描區域大小
+  static const double scanWidth = 240;
+  static const double scanHeight = 70;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = CameraController(widget.camera, ResolutionPreset.medium);
+    _initializeControllerFuture = _controller.initialize();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<String> _cropImage(String imagePath, Size previewSize) async {
+    final File imageFile = File(imagePath);
+    final bytes = await imageFile.readAsBytes();
+    final originalImage = img.decodeImage(bytes);
+
+    if (originalImage == null) {
+      throw Exception('Failed to decode image');
+    }
+
+    // 計算裁剪區域在實際圖片中的位置
+    final double scaleX = originalImage.width / previewSize.width;
+    final double scaleY = originalImage.height / previewSize.height;
+
+    final int cropX = ((previewSize.width - scanWidth) / 2 * scaleX).round();
+    final int cropY = ((previewSize.height - scanHeight) / 2 * scaleY).round();
+    final int cropW = (scanWidth * scaleX).round();
+    final int cropH = (scanHeight * scaleY).round();
+
+    // 裁剪圖片
+    final croppedImage = img.copyCrop(
+      originalImage,
+      x: cropX,
+      y: cropY,
+      width: cropW,
+      height: cropH,
+    );
+
+    // 儲存裁剪後的圖片
+    final croppedPath = imagePath.replaceAll('.jpg', '_cropped.jpg');
+    final croppedFile = File(croppedPath);
+    await croppedFile.writeAsBytes(img.encodeJpg(croppedImage));
+
+    return croppedPath;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
+    return Scaffold(
+      appBar: AppBar(title: const Text('效期辨識')),
+      body: FutureBuilder<void>(
+        future: _initializeControllerFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.done) {
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                final previewSize = Size(
+                  constraints.maxWidth,
+                  constraints.maxHeight,
+                );
+                return Stack(
+                  children: [
+                    // 相機預覽
+                    SizedBox.expand(child: CameraPreview(_controller)),
+                    // 半透明遮罩 (使用 CustomPaint)
+                    CustomPaint(
+                      size: previewSize,
+                      painter: ScanOverlayPainter(
+                        scanWidth: scanWidth,
+                        scanHeight: scanHeight,
+                      ),
+                    ),
+                    // 掃描框邊框
+                    Center(
+                      child: Container(
+                        width: scanWidth,
+                        height: scanHeight,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.green, width: 2),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ),
+                    // 提示文字
+                    Positioned(
+                      bottom: 100,
+                      left: 0,
+                      right: 0,
+                      child: const Text(
+                        '請將效期對準掃描框',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            );
+          } else {
+            return const Center(child: CircularProgressIndicator());
+          }
+        },
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          try {
+            await _initializeControllerFuture;
+
+            final image = await _controller.takePicture();
+
+            if (!context.mounted) return;
+
+            // 取得預覽區域大小
+            final RenderBox? renderBox =
+                context.findRenderObject() as RenderBox?;
+            final previewSize = renderBox?.size ?? const Size(400, 600);
+
+            // 裁剪圖片
+            final croppedPath = await _cropImage(image.path, previewSize);
+
+            if (!context.mounted) return;
+
+            await Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (context) =>
+                    DisplayPictureScreen(imagePath: croppedPath),
+              ),
+            );
+          } catch (e) {
+            debugPrint('Error: $e');
+          }
+        },
+        child: const Icon(Icons.camera_alt),
+      ),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+// 自訂繪製掃描遮罩
+class ScanOverlayPainter extends CustomPainter {
+  final double scanWidth;
+  final double scanHeight;
 
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+  ScanOverlayPainter({required this.scanWidth, required this.scanHeight});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.black.withValues(alpha: 0.5)
+      ..style = PaintingStyle.fill;
+
+    // 計算掃描框位置
+    final scanRect = Rect.fromCenter(
+      center: Offset(size.width / 2, size.height / 2),
+      width: scanWidth,
+      height: scanHeight,
+    );
+
+    // 繪製遮罩 (整個畫面減去掃描框區域)
+    final path = Path()
+      ..addRect(Rect.fromLTWH(0, 0, size.width, size.height))
+      ..addRect(scanRect)
+      ..fillType = PathFillType.evenOdd;
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+// A widget that displays the picture taken by the user.
+class DisplayPictureScreen extends StatefulWidget {
+  final String imagePath;
 
-  void _incrementCounter() {
+  const DisplayPictureScreen({super.key, required this.imagePath});
+
+  @override
+  State<DisplayPictureScreen> createState() => _DisplayPictureScreenState();
+}
+
+class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
+  final Dio _dio = Dio();
+  bool _isLoading = false;
+  String? _ocrResult;
+
+  Future<void> _sendToOcrApi() async {
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+      _isLoading = true;
+      _ocrResult = null;
     });
+
+    try {
+      // 讀取圖片檔案並轉換為 base64
+      final File imageFile = File(widget.imagePath);
+      // check image height and width
+      final image = await decodeImageFromList(imageFile.readAsBytesSync());
+      print('Image width: ${image.width}, height: ${image.height}');
+
+      final List<int> imageBytes = await imageFile.readAsBytes();
+      final String base64Image = base64Encode(imageBytes);
+
+      // 發送 POST 請求到 OCR API
+      final response = await _dio.post(
+        'http://192.168.50.46:8888/ocr_inference_base64',
+        data: {'image_base64': base64Image},
+        options: Options(
+          headers: {'Content-Type': 'application/json'},
+          sendTimeout: Duration(seconds: 10),
+          receiveTimeout: Duration(seconds: 10),
+        ),
+      );
+
+      setState(() {
+        _ocrResult = response.data.toString();
+      });
+    } on DioException catch (e) {
+      setState(() {
+        _ocrResult = '錯誤: ${e.message}';
+      });
+    } catch (e) {
+      setState(() {
+        _ocrResult = '錯誤: $e';
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
+      appBar: AppBar(title: const Text('Display the Picture')),
+      body: SingleChildScrollView(
         child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
           children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+            Image.file(File(widget.imagePath)),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _isLoading ? null : _sendToOcrApi,
+              child: _isLoading
+                  ? const CircularProgressIndicator()
+                  : const Text('辨識效期'),
             ),
+            if (_ocrResult != null) ...[
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text(
+                  '辨識結果:\n$_ocrResult',
+                  style: const TextStyle(fontSize: 16),
+                ),
+              ),
+            ],
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
       ),
     );
   }
