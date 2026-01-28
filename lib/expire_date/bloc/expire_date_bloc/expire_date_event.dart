@@ -22,3 +22,21 @@ class ExpireDateRecognized extends ExpireDateEvent {
   @override
   List<Object> get props => [imagePath];
 }
+
+class InventoryRecognized extends ExpireDateEvent {
+  const InventoryRecognized({required this.imagePath});
+
+  final String imagePath;
+
+  @override
+  List<Object> get props => [imagePath];
+}
+
+class AppModeChanged extends ExpireDateEvent {
+  const AppModeChanged({required this.appMode});
+
+  final AppMode appMode;
+
+  @override
+  List<Object> get props => [appMode];
+}

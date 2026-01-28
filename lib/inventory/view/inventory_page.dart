@@ -1,13 +1,12 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:good_app/expire_date/bloc/expire_date_bloc/expire_date_bloc.dart';
-import 'package:good_app/expire_date/view/expire_date_view.dart';
-import 'package:good_app/repository/expire_date_repository.dart';
+import 'package:good_app/inventory/bloc/inventory_bloc/inventory_bloc.dart';
+import 'package:good_app/inventory/view/inventory_view.dart';
 import 'package:good_app/repository/inventory_repository.dart';
 
-class ExpireDatePage extends StatelessWidget {
-  const ExpireDatePage({
+class InventoryPage extends StatelessWidget {
+  const InventoryPage({
     super.key,
     required this.controller,
     required this.initializeControllerFuture,
@@ -19,15 +18,12 @@ class ExpireDatePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => ExpireDateBloc(
-        expireDateRepository: RepositoryProvider.of<ExpireDateRepository>(
-          context,
-        ),
+      create: (context) => InventoryBloc(
         inventoryRepository: RepositoryProvider.of<InventoryRepository>(
           context,
         ),
       ),
-      child: ExpireDateView(
+      child: InventoryView(
         controller: controller,
         initializeControllerFuture: initializeControllerFuture,
       ),

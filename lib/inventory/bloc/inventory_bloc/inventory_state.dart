@@ -1,43 +1,33 @@
-part of 'expire_date_bloc.dart';
+part of 'inventory_bloc.dart';
 
-enum AppMode { expireDate, inventory }
-
-class ExpireDateState extends Equatable {
-  const ExpireDateState({
+class InventoryState extends Equatable {
+  const InventoryState({
     this.formStatus = FormStatus.none,
     this.submissionStatus = SubmissionStatus.none,
     this.cameraDescriptions = const [],
-    this.ocrResponse,
-    this.inventoryResponse,
+    this.response = '',
     this.errorMessage = '',
-    this.appMode = AppMode.expireDate,
   });
 
   final FormStatus formStatus;
   final SubmissionStatus submissionStatus;
   final List<CameraDescription> cameraDescriptions;
-  final OcrResponse? ocrResponse;
-  final String? inventoryResponse;
+  final String response;
   final String errorMessage;
-  final AppMode appMode;
 
-  ExpireDateState copyWith({
+  InventoryState copyWith({
     FormStatus? formStatus,
     SubmissionStatus? submissionStatus,
     List<CameraDescription>? cameraDescriptions,
-    OcrResponse? ocrResponse,
-    String? inventoryResponse,
+    String? response,
     String? errorMessage,
-    AppMode? appMode,
   }) {
-    return ExpireDateState(
+    return InventoryState(
       formStatus: formStatus ?? this.formStatus,
       submissionStatus: submissionStatus ?? this.submissionStatus,
       cameraDescriptions: cameraDescriptions ?? this.cameraDescriptions,
-      ocrResponse: ocrResponse ?? this.ocrResponse,
-      inventoryResponse: inventoryResponse ?? this.inventoryResponse,
+      response: response ?? this.response,
       errorMessage: errorMessage ?? this.errorMessage,
-      appMode: appMode ?? this.appMode,
     );
   }
 
@@ -46,9 +36,7 @@ class ExpireDateState extends Equatable {
     formStatus,
     submissionStatus,
     cameraDescriptions,
-    ocrResponse,
-    inventoryResponse,
+    response,
     errorMessage,
-    appMode,
   ];
 }

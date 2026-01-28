@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:good_app/expire_date/view/expire_date_page.dart';
+import 'package:good_app/home/view/home_page.dart';
 import 'package:good_app/repository/expire_date_repository.dart';
 import 'package:good_app/repository/inventory_repository.dart';
 
@@ -21,7 +21,7 @@ class App extends StatelessWidget {
         RepositoryProvider(create: (context) => expireDateRepository),
         RepositoryProvider(create: (context) => inventoryRepository),
       ],
-      child: MaterialApp(theme: ThemeData.dark(), home: ExpireDatePage()),
+      child: MaterialApp(theme: ThemeData.dark(), home: const HomePage()),
     );
   }
 }

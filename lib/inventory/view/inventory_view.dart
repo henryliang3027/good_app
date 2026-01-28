@@ -11,8 +11,8 @@ import 'package:good_app/core/form_status.dart';
 import 'package:good_app/expire_date/bloc/expire_date_bloc/expire_date_bloc.dart';
 import 'package:image/image.dart' as img;
 
-class ExpireDateView extends StatelessWidget {
-  const ExpireDateView({
+class InventoryView extends StatelessWidget {
+  const InventoryView({
     super.key,
     required this.controller,
     required this.initializeControllerFuture,
@@ -29,78 +29,20 @@ class ExpireDateView extends StatelessWidget {
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.done &&
               controller != null) {
-            return BlocBuilder<ExpireDateBloc, ExpireDateState>(
-              builder: (context, state) {
-                return LayoutBuilder(
-                  builder: (context, constraints) {
-                    final previewSize = Size(
-                      constraints.maxWidth,
-                      constraints.maxHeight,
-                    );
-                    return Stack(
-                      children: [
-                        // 相機預覽
-                        SizedBox.expand(child: CameraPreview(controller!)),
-                        // 半透明遮罩 (使用 CustomPaint)
-                        state.appMode == AppMode.expireDate
-                            ? CustomPaint(
-                                size: previewSize,
-                                painter: ScanOverlayPainter(
-                                  scanWidth: scanWidth,
-                                  scanHeight: scanHeight,
-                                ),
-                              )
-                            : SizedBox(),
-                        // 掃描框邊框
-                        state.appMode == AppMode.expireDate
-                            ? Center(
-                                child: Container(
-                                  width: scanWidth,
-                                  height: scanHeight,
-                                  decoration: BoxDecoration(
-                                    border: Border.all(
-                                      color: Colors.green,
-                                      width: 2,
-                                    ),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                ),
-                              )
-                            : SizedBox(),
-                        // 提示文字
-                        state.appMode == AppMode.expireDate
-                            ? Positioned(
-                                bottom: 100,
-                                left: 0,
-                                right: 0,
-                                child: const Text(
-                                  '請將效期對準掃描框',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              )
-                            : SizedBox(),
-                        const Positioned(
-                          top: 40,
-                          right: 0,
-                          child: AppModeToggleButton(),
-                        ),
-                        // 辨識結果顯示
-                        state.appMode == AppMode.expireDate
-                            ? const Positioned(
-                                top: 160,
-                                left: 40,
-                                right: 40,
-                                child: OcrResultDisplay(),
-                              )
-                            : SizedBox(),
-                      ],
-                    );
-                  },
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                return Stack(
+                  children: [
+                    // 相機預覽
+                    // SizedBox.expand(child: CameraPreview(controller!)),
+                    // 辨識結果顯示
+                    const Positioned(
+                      top: 20,
+                      left: 16,
+                      right: 16,
+                      child: OcrResultDisplay(),
+                    ),
+                  ],
                 );
               },
             );
@@ -109,12 +51,6 @@ class ExpireDateView extends StatelessWidget {
           }
         },
       ),
-      floatingActionButton: controller != null
-          ? TakePictureFloatingActionButton(
-              parentContext: context,
-              controller: controller!,
-            )
-          : null,
     );
   }
 }
@@ -189,27 +125,9 @@ class TakePictureFloatingActionButton extends StatelessWidget {
 
               if (!context.mounted) return;
 
-              if (state.appMode == AppMode.expireDate) {
-                // 取得預覽區域大小
-                final RenderBox? renderBox =
-                    parentContext.findRenderObject() as RenderBox?;
-                final Size previewSize =
-                    renderBox?.size ?? const Size(400, 600);
-
-                // 裁剪圖片
-                final String croppedPath = await cropImage(
-                  image.path,
-                  previewSize,
-                );
-
-                context.read<ExpireDateBloc>().add(
-                  ExpireDateRecognized(imagePath: croppedPath),
-                );
-              } else if (state.appMode == AppMode.inventory) {
-                context.read<ExpireDateBloc>().add(
-                  InventoryRecognized(imagePath: image.path),
-                );
-              }
+              context.read<ExpireDateBloc>().add(
+                ExpireDateRecognized(imagePath: croppedPath),
+              );
 
               // await Navigator.of(context).push(
               //   MaterialPageRoute<void>(
@@ -224,49 +142,6 @@ class TakePictureFloatingActionButton extends StatelessWidget {
           child: state.submissionStatus.isSubmissionInProgress
               ? const CircularProgressIndicator()
               : const Icon(Icons.camera_alt),
-        );
-      },
-    );
-  }
-}
-
-/// 模式切換按鈕
-class AppModeToggleButton extends StatelessWidget {
-  const AppModeToggleButton({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<ExpireDateBloc, ExpireDateState>(
-      buildWhen: (previous, current) => previous.appMode != current.appMode,
-      builder: (context, state) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: ToggleButtons(
-            isSelected: [
-              state.appMode == AppMode.expireDate,
-              state.appMode == AppMode.inventory,
-            ],
-            onPressed: (index) {
-              context.read<ExpireDateBloc>().add(
-                AppModeChanged(
-                  appMode: index == 0 ? AppMode.expireDate : AppMode.inventory,
-                ),
-              );
-            },
-            borderRadius: BorderRadius.circular(8),
-            selectedColor: Colors.white,
-            fillColor: Colors.blue,
-            children: const [
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 12),
-                child: Text('效期'),
-              ),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 12),
-                child: Text('庫存'),
-              ),
-            ],
-          ),
         );
       },
     );
