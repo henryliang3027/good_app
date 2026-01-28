@@ -7,14 +7,7 @@ import 'package:good_app/repository/expire_date_repository.dart';
 import 'package:good_app/repository/inventory_repository.dart';
 
 class ExpireDatePage extends StatelessWidget {
-  const ExpireDatePage({
-    super.key,
-    required this.controller,
-    required this.initializeControllerFuture,
-  });
-
-  final CameraController? controller;
-  final Future<void> initializeControllerFuture;
+  const ExpireDatePage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -27,10 +20,7 @@ class ExpireDatePage extends StatelessWidget {
           context,
         ),
       ),
-      child: ExpireDateView(
-        controller: controller,
-        initializeControllerFuture: initializeControllerFuture,
-      ),
+      child: ExpireDateView(),
     );
   }
 }

@@ -21,6 +21,8 @@ class ExpireDateBloc extends Bloc<ExpireDateEvent, ExpireDateState> {
     on<ExpireDateRecognized>(_onExpireDateRecognized);
     on<InventoryRecognized>(_onInventoryRecognized);
     on<AppModeChanged>(_onAppModeChanged);
+
+    add(ExpireDateInitialize());
   }
 
   final ExpireDateRepository _expireDateRepository;
@@ -30,10 +32,25 @@ class ExpireDateBloc extends Bloc<ExpireDateEvent, ExpireDateState> {
     ExpireDateInitialize event,
     Emitter<ExpireDateState> emit,
   ) async {
-    // List<CameraDescription> cameraDescriptions = await availableCameras();
-    // CameraDescription cameraDescription = cameraDescriptions[2];
+    emit(state.copyWith(formStatus: FormStatus.requestInProgress));
 
-    emit(state.copyWith());
+    List<CameraDescription> cameraDescriptions = await availableCameras();
+    CameraDescription cameraDescription = cameraDescriptions[2];
+    CameraController controller = CameraController(
+      cameraDescription,
+      ResolutionPreset.ultraHigh,
+    );
+    await controller.initialize();
+
+    double getMaxZoomLevel = await controller.getMaxZoomLevel();
+    double getMinZoomLevel = await controller.getMinZoomLevel();
+    controller.setFocusMode(FocusMode.auto);
+    emit(
+      state.copyWith(
+        formStatus: FormStatus.requestSuccess,
+        cameraController: controller,
+      ),
+    );
   }
 
   Future<void> _onExpireDateRecognized(

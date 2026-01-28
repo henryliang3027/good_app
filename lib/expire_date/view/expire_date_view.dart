@@ -12,109 +12,108 @@ import 'package:good_app/expire_date/bloc/expire_date_bloc/expire_date_bloc.dart
 import 'package:image/image.dart' as img;
 
 class ExpireDateView extends StatelessWidget {
-  const ExpireDateView({
-    super.key,
-    required this.controller,
-    required this.initializeControllerFuture,
-  });
-
-  final CameraController? controller;
-  final Future<void> initializeControllerFuture;
+  const ExpireDateView({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: FutureBuilder<void>(
-        future: initializeControllerFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.done &&
-              controller != null) {
-            return BlocBuilder<ExpireDateBloc, ExpireDateState>(
-              builder: (context, state) {
-                return LayoutBuilder(
-                  builder: (context, constraints) {
-                    final previewSize = Size(
-                      constraints.maxWidth,
-                      constraints.maxHeight,
-                    );
-                    return Stack(
-                      children: [
-                        // 相機預覽
-                        SizedBox.expand(child: CameraPreview(controller!)),
-                        // 半透明遮罩 (使用 CustomPaint)
-                        state.appMode == AppMode.expireDate
-                            ? CustomPaint(
-                                size: previewSize,
-                                painter: ScanOverlayPainter(
-                                  scanWidth: scanWidth,
-                                  scanHeight: scanHeight,
-                                ),
-                              )
-                            : SizedBox(),
-                        // 掃描框邊框
-                        state.appMode == AppMode.expireDate
-                            ? Center(
-                                child: Container(
-                                  width: scanWidth,
-                                  height: scanHeight,
-                                  decoration: BoxDecoration(
-                                    border: Border.all(
-                                      color: Colors.green,
-                                      width: 2,
-                                    ),
-                                    borderRadius: BorderRadius.circular(4),
+    return BlocBuilder<ExpireDateBloc, ExpireDateState>(
+      builder: (context, state) {
+        if (state.formStatus.isRequestInProgress) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        } else if (state.formStatus.isRequestSuccess) {
+          return SafeArea(
+            child: Scaffold(
+              body: LayoutBuilder(
+                builder: (context, constraints) {
+                  final previewSize = Size(
+                    constraints.maxWidth,
+                    constraints.maxHeight,
+                  );
+                  return Stack(
+                    children: [
+                      // 相機預覽
+                      SizedBox.expand(
+                        child: CameraPreview(state.cameraController!),
+                      ),
+                      // 半透明遮罩 (使用 CustomPaint)
+                      state.appMode == AppMode.expireDate
+                          ? CustomPaint(
+                              size: previewSize,
+                              painter: ScanOverlayPainter(
+                                scanWidth: scanWidth,
+                                scanHeight: scanHeight,
+                              ),
+                            )
+                          : SizedBox(),
+                      // 掃描框邊框
+                      state.appMode == AppMode.expireDate
+                          ? Center(
+                              child: Container(
+                                width: scanWidth,
+                                height: scanHeight,
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: Colors.green,
+                                    width: 2,
                                   ),
+                                  borderRadius: BorderRadius.circular(4),
                                 ),
-                              )
-                            : SizedBox(),
-                        // 提示文字
-                        state.appMode == AppMode.expireDate
-                            ? Positioned(
-                                bottom: 100,
-                                left: 0,
-                                right: 0,
-                                child: const Text(
-                                  '請將效期對準掃描框',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                              ),
+                            )
+                          : SizedBox(),
+                      // 提示文字
+                      state.appMode == AppMode.expireDate
+                          ? Positioned(
+                              bottom: 120,
+                              left: 0,
+                              right: 0,
+                              child: const Text(
+                                '請將效期對準掃描框',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                              )
-                            : SizedBox(),
-                        const Positioned(
-                          top: 40,
-                          right: 0,
-                          child: AppModeToggleButton(),
+                              ),
+                            )
+                          : SizedBox(),
+                      const Positioned(
+                        top: 40,
+                        right: 0,
+                        child: AppModeToggleButton(),
+                      ),
+                      const Positioned.fill(
+                        child: Align(
+                          alignment: Alignment.bottomCenter,
+                          child: ZoomButton(),
                         ),
-                        // 辨識結果顯示
-                        state.appMode == AppMode.expireDate
-                            ? const Positioned(
-                                top: 160,
-                                left: 40,
-                                right: 40,
-                                child: OcrResultDisplay(),
-                              )
-                            : SizedBox(),
-                      ],
-                    );
-                  },
-                );
-              },
-            );
-          } else {
-            return const Center(child: CircularProgressIndicator());
-          }
-        },
-      ),
-      floatingActionButton: controller != null
-          ? TakePictureFloatingActionButton(
-              parentContext: context,
-              controller: controller!,
-            )
-          : null,
+                      ),
+                      // 辨識結果顯示
+                      state.appMode == AppMode.expireDate
+                          ? const Positioned(
+                              top: 90,
+                              left: 160,
+                              right: 160,
+                              child: OcrResultDisplay(),
+                            )
+                          : SizedBox(),
+                    ],
+                  );
+                },
+              ),
+
+              floatingActionButton: TakePictureFloatingActionButton(
+                parentContext: context,
+              ),
+            ),
+          );
+        } else {
+          return const Scaffold(body: Center(child: Text('初始化失敗')));
+        }
+      },
     );
   }
 }
@@ -123,10 +122,8 @@ class TakePictureFloatingActionButton extends StatelessWidget {
   const TakePictureFloatingActionButton({
     super.key,
     required this.parentContext,
-    required this.controller,
   });
 
-  final CameraController controller;
   final BuildContext parentContext;
 
   @override
@@ -172,20 +169,9 @@ class TakePictureFloatingActionButton extends StatelessWidget {
         return FloatingActionButton(
           onPressed: () async {
             try {
-              final image = await controller.takePicture();
+              final image = await state.cameraController!.takePicture();
 
               if (!context.mounted) return;
-
-              // 取得預覽區域大小
-              final RenderBox? renderBox =
-                  parentContext.findRenderObject() as RenderBox?;
-              final Size previewSize = renderBox?.size ?? const Size(400, 600);
-
-              // 裁剪圖片
-              final String croppedPath = await cropImage(
-                image.path,
-                previewSize,
-              );
 
               if (!context.mounted) return;
 
@@ -225,6 +211,52 @@ class TakePictureFloatingActionButton extends StatelessWidget {
               ? const CircularProgressIndicator()
               : const Icon(Icons.camera_alt),
         );
+      },
+    );
+  }
+}
+
+class ZoomButton extends StatelessWidget {
+  const ZoomButton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<ExpireDateBloc, ExpireDateState>(
+      builder: (context, state) {
+        if (state.formStatus.isRequestSuccess) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.zoom_in),
+                  color: Colors.white,
+                  onPressed: () async {
+                    await state.cameraController!.setZoomLevel(8.0);
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.zoom_out),
+                  color: Colors.white,
+                  onPressed: () async {
+                    await state.cameraController!.setZoomLevel(2.0);
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.center_focus_strong_outlined),
+                  color: Colors.white,
+                  onPressed: () async {
+                    await state.cameraController!.setFocusPoint(
+                      const Offset(0.5, 0.5),
+                    );
+                  },
+                ),
+              ],
+            ),
+          );
+        } else {
+          return SizedBox();
+        }
       },
     );
   }

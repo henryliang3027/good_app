@@ -6,7 +6,7 @@ class ExpireDateState extends Equatable {
   const ExpireDateState({
     this.formStatus = FormStatus.none,
     this.submissionStatus = SubmissionStatus.none,
-    this.cameraDescriptions = const [],
+    this.cameraController,
     this.ocrResponse,
     this.inventoryResponse,
     this.errorMessage = '',
@@ -15,7 +15,7 @@ class ExpireDateState extends Equatable {
 
   final FormStatus formStatus;
   final SubmissionStatus submissionStatus;
-  final List<CameraDescription> cameraDescriptions;
+  final CameraController? cameraController;
   final OcrResponse? ocrResponse;
   final String? inventoryResponse;
   final String errorMessage;
@@ -24,7 +24,7 @@ class ExpireDateState extends Equatable {
   ExpireDateState copyWith({
     FormStatus? formStatus,
     SubmissionStatus? submissionStatus,
-    List<CameraDescription>? cameraDescriptions,
+    CameraController? cameraController,
     OcrResponse? ocrResponse,
     String? inventoryResponse,
     String? errorMessage,
@@ -33,7 +33,7 @@ class ExpireDateState extends Equatable {
     return ExpireDateState(
       formStatus: formStatus ?? this.formStatus,
       submissionStatus: submissionStatus ?? this.submissionStatus,
-      cameraDescriptions: cameraDescriptions ?? this.cameraDescriptions,
+      cameraController: cameraController ?? this.cameraController,
       ocrResponse: ocrResponse ?? this.ocrResponse,
       inventoryResponse: inventoryResponse ?? this.inventoryResponse,
       errorMessage: errorMessage ?? this.errorMessage,
@@ -45,7 +45,7 @@ class ExpireDateState extends Equatable {
   List<Object?> get props => [
     formStatus,
     submissionStatus,
-    cameraDescriptions,
+    cameraController,
     ocrResponse,
     inventoryResponse,
     errorMessage,
