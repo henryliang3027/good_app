@@ -238,6 +238,7 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
   final Dio _dio = Dio();
   bool _isLoading = false;
   String? _ocrResult;
+  final String endpoint = 'https://gillian-unhesitative-jestine.ngrok-free.dev';
 
   Future<void> _sendToOcrApi() async {
     setState(() {
@@ -257,7 +258,7 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
 
       // 發送 POST 請求到 OCR API
       final response = await _dio.post(
-        'http://192.168.50.46:8888/ocr_inference_base64',
+        '$endpoint/ocr_inference_base64',
         data: {'image_base64': base64Image},
         options: Options(
           headers: {'Content-Type': 'application/json'},
