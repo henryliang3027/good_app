@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'dart:ui';
+
 import 'package:camera/camera.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -5,7 +8,10 @@ import 'package:good_app/core/form_status.dart';
 import 'package:good_app/repository/api_exception_manager.dart';
 import 'package:good_app/repository/expire_date_repository.dart';
 import 'package:good_app/repository/inventory_repository.dart';
+import 'package:good_app/repository/models/inventory_response.dart';
 import 'package:good_app/repository/models/ocr_response.dart';
+import 'package:good_app/core/constants.dart';
+import 'package:image/image.dart' as img;
 
 part 'expire_date_event.dart';
 part 'expire_date_state.dart';
@@ -45,12 +51,48 @@ class ExpireDateBloc extends Bloc<ExpireDateEvent, ExpireDateState> {
     double getMaxZoomLevel = await controller.getMaxZoomLevel();
     double getMinZoomLevel = await controller.getMinZoomLevel();
     controller.setFocusMode(FocusMode.auto);
+    controller.setZoomLevel(2.0);
     emit(
       state.copyWith(
         formStatus: FormStatus.requestSuccess,
         cameraController: controller,
       ),
     );
+  }
+
+  Future<String> _cropImage(String imagePath, Size previewSize) async {
+    final File imageFile = File(imagePath);
+    final bytes = await imageFile.readAsBytes();
+    final originalImage = img.decodeImage(bytes);
+
+    if (originalImage == null) {
+      throw Exception('Failed to decode image');
+    }
+
+    // 計算裁剪區域在實際圖片中的位置
+    final double scaleX = originalImage.width / previewSize.width;
+    final double scaleY = originalImage.height / previewSize.height;
+
+    final int cropX = ((previewSize.width - scanWidth) / 2 * scaleX).round();
+    final int cropY = ((previewSize.height - scanHeight) / 2 * scaleY).round();
+    final int cropW = (scanWidth * scaleX).round();
+    final int cropH = (scanHeight * scaleY).round();
+
+    // 裁剪圖片
+    final croppedImage = img.copyCrop(
+      originalImage,
+      x: cropX,
+      y: cropY,
+      width: cropW,
+      height: cropH,
+    );
+
+    // 儲存裁剪後的圖片
+    final croppedPath = imagePath.replaceAll('.jpg', '_cropped.jpg');
+    final croppedFile = File(croppedPath);
+    await croppedFile.writeAsBytes(img.encodeJpg(croppedImage));
+
+    return croppedPath;
   }
 
   Future<void> _onExpireDateRecognized(
@@ -64,9 +106,14 @@ class ExpireDateBloc extends Bloc<ExpireDateEvent, ExpireDateState> {
       ),
     );
 
+    String croppedImagePath = await _cropImage(
+      event.imagePath,
+      event.previewSize,
+    );
+
     try {
       final result = await _expireDateRepository.recognizeExpireDate(
-        imagePath: event.imagePath,
+        imagePath: croppedImagePath,
       );
 
       emit(

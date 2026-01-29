@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 
+import 'package:good_app/repository/models/inventory_response.dart';
+
 class InventoryRepository {
   InventoryRepository({Dio? dio}) : _dio = dio ?? Dio();
 
@@ -13,7 +15,9 @@ class InventoryRepository {
   /// 發送圖片到 OCR API 進行效期辨識
   /// [imagePath] 圖片檔案路徑
   /// 返回 OCR 辨識結果
-  Future<String> recognizeInventory({required String imagePath}) async {
+  Future<InventoryResponse> recognizeInventory({
+    required String imagePath,
+  }) async {
     final File imageFile = File(imagePath);
     final List<int> imageBytes = await imageFile.readAsBytes();
     final String base64Image = base64Encode(imageBytes);
@@ -28,6 +32,6 @@ class InventoryRepository {
       ),
     );
 
-    return response.data.toString();
+    return InventoryResponse.fromJson(response.data);
   }
 }

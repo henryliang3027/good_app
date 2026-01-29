@@ -17,7 +17,7 @@ class ExpireDateState extends Equatable {
   final SubmissionStatus submissionStatus;
   final CameraController? cameraController;
   final OcrResponse? ocrResponse;
-  final String? inventoryResponse;
+  final InventoryResponse? inventoryResponse;
   final String errorMessage;
   final AppMode appMode;
 
@@ -26,7 +26,7 @@ class ExpireDateState extends Equatable {
     SubmissionStatus? submissionStatus,
     CameraController? cameraController,
     OcrResponse? ocrResponse,
-    String? inventoryResponse,
+    InventoryResponse? inventoryResponse,
     String? errorMessage,
     AppMode? appMode,
   }) {
