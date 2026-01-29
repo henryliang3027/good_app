@@ -1,9 +1,12 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:good_app/repository/api_exception_manager.dart';
 import 'package:good_app/repository/models/ocr_response.dart';
+import 'package:image/image.dart' as img;
 
 class ExpireDateRepository {
   ExpireDateRepository({Dio? dio}) : _dio = dio ?? Dio();
@@ -21,20 +24,18 @@ class ExpireDateRepository {
   /// - [RequestTimeoutException] 請求超時
   /// - [ServerErrorException] 伺服器錯誤
   /// - [ImageFileException] 圖片檔案讀取失敗
-  Future<OcrResponse> recognizeExpireDate({required String imagePath}) async {
-    final File imageFile = File(imagePath);
-
-    // 檢查檔案是否存在
-    if (!await imageFile.exists()) {
-      throw const ImageFileException('圖片檔案不存在');
-    }
-
-    final List<int> imageBytes;
-    try {
-      imageBytes = await imageFile.readAsBytes();
-    } catch (e) {
-      throw const ImageFileException();
-    }
+  Future<OcrResponse> recognizeExpireDate({
+    required Uint8List imageBytes,
+  }) async {
+    // Debug: check image size
+    // final decodedImage = img.decodeImage(imageBytes);
+    // if (decodedImage != null) {
+    //   developer.log(
+    //     'Image size: ${decodedImage.width} x ${decodedImage.height}, '
+    //     'bytes: ${imageBytes.length}',
+    //     name: 'ExpireDateRepository',
+    //   );
+    // }
 
     final String base64Image = base64Encode(imageBytes);
 

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:camera/camera.dart';
@@ -60,7 +61,7 @@ class ExpireDateBloc extends Bloc<ExpireDateEvent, ExpireDateState> {
     );
   }
 
-  Future<String> _cropImage(String imagePath, Size previewSize) async {
+  Future<Uint8List> _cropImage(String imagePath, Size previewSize) async {
     final File imageFile = File(imagePath);
     final bytes = await imageFile.readAsBytes();
     final originalImage = img.decodeImage(bytes);
@@ -87,12 +88,8 @@ class ExpireDateBloc extends Bloc<ExpireDateEvent, ExpireDateState> {
       height: cropH,
     );
 
-    // 儲存裁剪後的圖片
-    final croppedPath = imagePath.replaceAll('.jpg', '_cropped.jpg');
-    final croppedFile = File(croppedPath);
-    await croppedFile.writeAsBytes(img.encodeJpg(croppedImage));
-
-    return croppedPath;
+    // 裁剪後的圖片編碼為 JPEG
+    return Uint8List.fromList(img.encodeJpg(croppedImage, quality: 100));
   }
 
   Future<void> _onExpireDateRecognized(
@@ -106,14 +103,14 @@ class ExpireDateBloc extends Bloc<ExpireDateEvent, ExpireDateState> {
       ),
     );
 
-    String croppedImagePath = await _cropImage(
+    Uint8List croppedImageByte = await _cropImage(
       event.imagePath,
       event.previewSize,
     );
 
     try {
       final result = await _expireDateRepository.recognizeExpireDate(
-        imagePath: croppedImagePath,
+        imageBytes: croppedImageByte,
       );
 
       emit(
@@ -194,7 +191,34 @@ class ExpireDateBloc extends Bloc<ExpireDateEvent, ExpireDateState> {
     }
   }
 
-  void _onAppModeChanged(AppModeChanged event, Emitter<ExpireDateState> emit) {
-    emit(state.copyWith(appMode: event.appMode));
+  Future<void> _onAppModeChanged(
+    AppModeChanged event,
+    Emitter<ExpireDateState> emit,
+  ) async {
+    state.cameraController!.dispose();
+
+    List<CameraDescription> cameraDescriptions = await availableCameras();
+    CameraDescription cameraDescription = cameraDescriptions[2];
+
+    if (event.appMode == AppMode.expireDate) {
+      CameraController controller = CameraController(
+        cameraDescription,
+        ResolutionPreset.medium,
+      );
+      await controller.initialize();
+      emit(
+        state.copyWith(appMode: event.appMode, cameraController: controller),
+      );
+    } else {
+      // Inventory Mode
+      CameraController controller = CameraController(
+        cameraDescription,
+        ResolutionPreset.high,
+      );
+      await controller.initialize();
+      emit(
+        state.copyWith(appMode: event.appMode, cameraController: controller),
+      );
+    }
   }
 }

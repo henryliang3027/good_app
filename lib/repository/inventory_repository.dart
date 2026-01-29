@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
-
 import 'package:dio/dio.dart';
-
 import 'package:good_app/repository/models/inventory_response.dart';
+import 'dart:developer' as developer;
+import 'package:image/image.dart' as img;
+import 'dart:typed_data';
 
 class InventoryRepository {
   InventoryRepository({Dio? dio}) : _dio = dio ?? Dio();
@@ -21,6 +22,17 @@ class InventoryRepository {
     final File imageFile = File(imagePath);
     final List<int> imageBytes = await imageFile.readAsBytes();
     final String base64Image = base64Encode(imageBytes);
+
+    Uint8List uint8List = Uint8List.fromList(imageBytes);
+
+    final decodedImage = img.decodeImage(uint8List);
+    if (decodedImage != null) {
+      developer.log(
+        'Image size: ${decodedImage.width} x ${decodedImage.height}, '
+        'bytes: ${imageBytes.length}',
+        name: 'ExpireDateRepository',
+      );
+    }
 
     final response = await _dio.post(
       '$_endpoint/inventory_base64',

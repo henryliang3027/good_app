@@ -56,7 +56,8 @@ class CameraView extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<ExpireDateBloc, ExpireDateState>(
       buildWhen: (previous, current) =>
-          previous.cameraController != current.cameraController,
+          previous.formStatus != current.formStatus ||
+          previous.appMode != current.appMode,
       builder: (context, state) {
         if (state.formStatus.isRequestSuccess) {
           return SizedBox.expand(child: CameraPreview(state.cameraController!));
