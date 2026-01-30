@@ -1,4 +1,5 @@
 // A screen that allows users to take a picture using a given camera.
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -329,181 +330,265 @@ class AppModeToggleButton extends StatelessWidget {
 }
 
 /// 辨識結果顯示元件
-class OcrResultDisplay extends StatelessWidget {
+class OcrResultDisplay extends StatefulWidget {
   const OcrResultDisplay({super.key});
 
   @override
+  State<OcrResultDisplay> createState() => _OcrResultDisplayState();
+}
+
+class _OcrResultDisplayState extends State<OcrResultDisplay> {
+  Timer? _hideTimer;
+  bool _isVisible = false;
+
+  void _startHideTimer() {
+    _hideTimer?.cancel();
+    _hideTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() => _isVisible = false);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _hideTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ExpireDateBloc, ExpireDateState>(
-      buildWhen: (previous, current) =>
+    return BlocListener<ExpireDateBloc, ExpireDateState>(
+      listenWhen: (previous, current) =>
           previous.submissionStatus != current.submissionStatus ||
           previous.ocrResponse != current.ocrResponse,
-      builder: (context, state) {
-        if (state.submissionStatus.isSubmissionInProgress) {
-          return Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.7),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                ),
-                SizedBox(width: 12),
-                Text(
-                  '辨識中...',
-                  style: TextStyle(color: Colors.white, fontSize: 16),
-                ),
-              ],
-            ),
-          );
-        } else if (state.submissionStatus.isSubmissionSuccess &&
-            state.ocrResponse != null) {
-          final response = state.ocrResponse!;
-
-          return Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: response.hasValidDate
-                  ? Colors.green.withValues(alpha: 0.9)
-                  : Colors.orange.withValues(alpha: 0.9),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (response.hasValidDate && response.date != null) ...[
-                  Text(
-                    '${response.date!.year} 年 ${response.date!.month} 月 ${response.date!.day} 日',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ] else
-                  Text(
-                    '無法辨識效期',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-              ],
-            ),
-          );
-        } else if (state.submissionStatus.isSubmissionFailure &&
-            state.errorMessage.isNotEmpty) {
-          return Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.red.withValues(alpha: 0.9),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              '辨識失敗: ${state.errorMessage}',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          );
-        } else {
-          return const SizedBox.shrink();
+      listener: (context, state) {
+        if (state.submissionStatus.isSubmissionSuccess ||
+            state.submissionStatus.isSubmissionFailure) {
+          setState(() => _isVisible = true);
+          _startHideTimer();
+        } else if (state.submissionStatus.isSubmissionInProgress) {
+          _hideTimer?.cancel();
+          setState(() => _isVisible = true);
         }
       },
+      child: BlocBuilder<ExpireDateBloc, ExpireDateState>(
+        buildWhen: (previous, current) =>
+            previous.submissionStatus != current.submissionStatus ||
+            previous.ocrResponse != current.ocrResponse,
+        builder: (context, state) {
+          if (!_isVisible) {
+            return const SizedBox.shrink();
+          }
+
+          if (state.submissionStatus.isSubmissionInProgress) {
+            return Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.7),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  Text(
+                    '辨識中...',
+                    style: TextStyle(color: Colors.white, fontSize: 16),
+                  ),
+                ],
+              ),
+            );
+          } else if (state.submissionStatus.isSubmissionSuccess &&
+              state.ocrResponse != null) {
+            final response = state.ocrResponse!;
+
+            return Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: response.hasValidDate
+                    ? Colors.green.withValues(alpha: 0.9)
+                    : Colors.orange.withValues(alpha: 0.9),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (response.hasValidDate && response.date != null) ...[
+                    Text(
+                      '${response.date!.year} 年 ${response.date!.month} 月 ${response.date!.day} 日',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ] else
+                    Text(
+                      '無法辨識效期',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                ],
+              ),
+            );
+          } else if (state.submissionStatus.isSubmissionFailure &&
+              state.errorMessage.isNotEmpty) {
+            return Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.red.withValues(alpha: 0.9),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '辨識失敗: ${state.errorMessage}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            );
+          } else {
+            return const SizedBox.shrink();
+          }
+        },
+      ),
     );
   }
 }
 
 /// 庫存辨識結果顯示元件
-class InventoryResultDisplay extends StatelessWidget {
+class InventoryResultDisplay extends StatefulWidget {
   const InventoryResultDisplay({super.key});
 
   @override
+  State<InventoryResultDisplay> createState() => _InventoryResultDisplayState();
+}
+
+class _InventoryResultDisplayState extends State<InventoryResultDisplay> {
+  Timer? _hideTimer;
+  bool _isVisible = false;
+
+  void _startHideTimer() {
+    _hideTimer?.cancel();
+    _hideTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() => _isVisible = false);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _hideTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ExpireDateBloc, ExpireDateState>(
-      buildWhen: (previous, current) =>
+    return BlocListener<ExpireDateBloc, ExpireDateState>(
+      listenWhen: (previous, current) =>
           previous.submissionStatus != current.submissionStatus ||
           previous.inventoryResponse != current.inventoryResponse,
-      builder: (context, state) {
-        if (state.submissionStatus.isSubmissionInProgress) {
-          return Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.7),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                ),
-                SizedBox(width: 12),
-                Text(
-                  '辨識中...',
-                  style: TextStyle(color: Colors.white, fontSize: 20),
-                ),
-              ],
-            ),
-          );
-        } else if (state.submissionStatus.isSubmissionSuccess &&
-            state.inventoryResponse != null) {
-          final response = state.inventoryResponse!.data;
-
-          return Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.green.withValues(alpha: 0.9),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  response.toString(),
-                  style: const TextStyle(color: Colors.white, fontSize: 20),
-                ),
-              ],
-            ),
-          );
-        } else if (state.submissionStatus.isSubmissionFailure &&
-            state.errorMessage.isNotEmpty) {
-          return Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.red.withValues(alpha: 0.9),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              '辨識失敗: ${state.errorMessage}',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          );
-        } else {
-          return const SizedBox.shrink();
+      listener: (context, state) {
+        if (state.submissionStatus.isSubmissionSuccess ||
+            state.submissionStatus.isSubmissionFailure) {
+          setState(() => _isVisible = true);
+          _startHideTimer();
+        } else if (state.submissionStatus.isSubmissionInProgress) {
+          _hideTimer?.cancel();
+          setState(() => _isVisible = true);
         }
       },
+      child: BlocBuilder<ExpireDateBloc, ExpireDateState>(
+        buildWhen: (previous, current) =>
+            previous.submissionStatus != current.submissionStatus ||
+            previous.inventoryResponse != current.inventoryResponse,
+        builder: (context, state) {
+          if (!_isVisible) {
+            return const SizedBox.shrink();
+          }
+
+          if (state.submissionStatus.isSubmissionInProgress) {
+            return Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.7),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  Text(
+                    '辨識中...',
+                    style: TextStyle(color: Colors.white, fontSize: 20),
+                  ),
+                ],
+              ),
+            );
+          } else if (state.submissionStatus.isSubmissionSuccess &&
+              state.inventoryResponse != null) {
+            final response = state.inventoryResponse!.data;
+
+            return Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.green.withValues(alpha: 0.9),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    response.toString(),
+                    style: const TextStyle(color: Colors.white, fontSize: 20),
+                  ),
+                ],
+              ),
+            );
+          } else if (state.submissionStatus.isSubmissionFailure &&
+              state.errorMessage.isNotEmpty) {
+            return Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.red.withValues(alpha: 0.9),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '辨識失敗: ${state.errorMessage}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            );
+          } else {
+            return const SizedBox.shrink();
+          }
+        },
+      ),
     );
   }
 }
