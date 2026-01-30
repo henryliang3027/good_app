@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:good_app/core/constants.dart';
 import 'package:good_app/core/form_status.dart';
@@ -17,6 +18,7 @@ class ExpireDateView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
+      top: false,
       child: Scaffold(
         body: LayoutBuilder(
           builder: (context, constraints) {
@@ -32,11 +34,14 @@ class ExpireDateView extends StatelessWidget {
                 // 模式相關 widgets
                 AppModeOverlay(previewSize: previewSize),
                 // 共用 widgets
-                const Positioned(
-                  top: 10,
-                  right: 0,
-                  child: AppModeToggleButton(),
-                ),
+                const AppModeToggleButton(),
+
+                // const Positioned.fill(
+                //   child: Align(
+                //     alignment: AlignmentGeometry.bottomLeft,
+                //     child: ZoomButton(),
+                //   ),
+                // ),
               ],
             );
           },
@@ -104,17 +109,20 @@ class AppModeOverlay extends StatelessWidget {
             ),
           ),
           // 提示文字
-          const Positioned(
-            bottom: 120,
-            left: 0,
-            right: 0,
-            child: Text(
-              '請將效期對準掃描框',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
+          const Positioned.fill(
+            child: Align(
+              alignment: Alignment.center,
+              child: Padding(
+                padding: EdgeInsets.only(top: 100),
+                child: Text(
+                  '請將效期對準掃描框',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ),
           ),
@@ -122,7 +130,10 @@ class AppModeOverlay extends StatelessWidget {
           const Positioned.fill(
             child: Align(
               alignment: Alignment.topLeft,
-              child: OcrResultDisplay(),
+              child: Padding(
+                padding: EdgeInsets.only(top: 40, left: 10),
+                child: OcrResultDisplay(),
+              ),
             ),
           ),
         ],
@@ -137,7 +148,10 @@ class AppModeOverlay extends StatelessWidget {
           const Positioned.fill(
             child: Align(
               alignment: Alignment.topLeft,
-              child: InventoryResultDisplay(),
+              child: Padding(
+                padding: EdgeInsets.only(top: 40, left: 10),
+                child: InventoryResultDisplay(),
+              ),
             ),
           ),
         ],
@@ -273,33 +287,40 @@ class AppModeToggleButton extends StatelessWidget {
     return BlocBuilder<ExpireDateBloc, ExpireDateState>(
       buildWhen: (previous, current) => previous.appMode != current.appMode,
       builder: (context, state) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: ToggleButtons(
-            isSelected: [
-              state.appMode == AppMode.expireDate,
-              state.appMode == AppMode.inventory,
-            ],
-            onPressed: (index) {
-              context.read<ExpireDateBloc>().add(
-                AppModeChanged(
-                  appMode: index == 0 ? AppMode.expireDate : AppMode.inventory,
-                ),
-              );
-            },
-            borderRadius: BorderRadius.circular(8),
-            selectedColor: Colors.white,
-            fillColor: Colors.blue,
-            children: const [
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 12),
-                child: Text('效期'),
+        return Positioned.fill(
+          child: Align(
+            alignment: Alignment.topRight,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 40, right: 10),
+              child: ToggleButtons(
+                isSelected: [
+                  state.appMode == AppMode.expireDate,
+                  state.appMode == AppMode.inventory,
+                ],
+                onPressed: (index) {
+                  context.read<ExpireDateBloc>().add(
+                    AppModeChanged(
+                      appMode: index == 0
+                          ? AppMode.expireDate
+                          : AppMode.inventory,
+                    ),
+                  );
+                },
+                borderRadius: BorderRadius.circular(8),
+                selectedColor: Colors.white,
+                fillColor: Colors.blue,
+                children: const [
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: Text('效期'),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: Text('庫存'),
+                  ),
+                ],
               ),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 12),
-                child: Text('庫存'),
-              ),
-            ],
+            ),
           ),
         );
       },
@@ -437,7 +458,7 @@ class InventoryResultDisplay extends StatelessWidget {
                 SizedBox(width: 12),
                 Text(
                   '辨識中...',
-                  style: TextStyle(color: Colors.white, fontSize: 16),
+                  style: TextStyle(color: Colors.white, fontSize: 20),
                 ),
               ],
             ),
@@ -457,7 +478,7 @@ class InventoryResultDisplay extends StatelessWidget {
               children: [
                 Text(
                   response.toString(),
-                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                  style: const TextStyle(color: Colors.white, fontSize: 20),
                 ),
               ],
             ),

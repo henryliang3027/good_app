@@ -21,7 +21,11 @@ class App extends StatelessWidget {
         RepositoryProvider(create: (context) => expireDateRepository),
         RepositoryProvider(create: (context) => inventoryRepository),
       ],
-      child: MaterialApp(theme: ThemeData.dark(), home: const ExpireDatePage()),
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData.dark(),
+        home: const ExpireDatePage(),
+      ),
     );
   }
 }

@@ -198,9 +198,9 @@ class ExpireDateBloc extends Bloc<ExpireDateEvent, ExpireDateState> {
     state.cameraController!.dispose();
 
     List<CameraDescription> cameraDescriptions = await availableCameras();
-    CameraDescription cameraDescription = cameraDescriptions[2];
 
     if (event.appMode == AppMode.expireDate) {
+      CameraDescription cameraDescription = cameraDescriptions[0];
       CameraController controller = CameraController(
         cameraDescription,
         ResolutionPreset.medium,
@@ -210,6 +210,7 @@ class ExpireDateBloc extends Bloc<ExpireDateEvent, ExpireDateState> {
         state.copyWith(appMode: event.appMode, cameraController: controller),
       );
     } else {
+      CameraDescription cameraDescription = cameraDescriptions[0];
       // Inventory Mode
       CameraController controller = CameraController(
         cameraDescription,
