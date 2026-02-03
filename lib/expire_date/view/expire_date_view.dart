@@ -22,6 +22,37 @@ class ExpireDateView extends StatelessWidget {
     return SafeArea(
       top: false,
       child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          iconTheme: const IconThemeData(color: Colors.white),
+        ),
+        extendBodyBehindAppBar: true,
+        drawer: Drawer(
+          child: SafeArea(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: const [
+                // DrawerHeader(
+                //   decoration: BoxDecoration(
+                //     color: Colors.blue,
+                //   ),
+                //   child: Text(
+                //     '設定',
+                //     style: TextStyle(
+                //       color: Colors.white,
+                //       fontSize: 24,
+                //     ),
+                //   ),
+                // ),
+                Padding(
+                  padding: EdgeInsets.all(16),
+                  child: AppModeToggleButton(),
+                ),
+              ],
+            ),
+          ),
+        ),
         body: LayoutBuilder(
           builder: (context, constraints) {
             final previewSize = Size(
@@ -35,15 +66,6 @@ class ExpireDateView extends StatelessWidget {
                 CameraView(),
                 // 模式相關 widgets
                 AppModeOverlay(previewSize: previewSize),
-                // 共用 widgets
-                const AppModeToggleButton(),
-
-                // const Positioned.fill(
-                //   child: Align(
-                //     alignment: AlignmentGeometry.bottomLeft,
-                //     child: ZoomButton(),
-                //   ),
-                // ),
               ],
             );
           },
@@ -144,10 +166,10 @@ class AppModeOverlay extends StatelessWidget {
 
     /// 庫存辨識模式的 widgets
     Widget buildInventoryModeWidgets() {
-      return Stack(
+      return const Stack(
         children: [
           // 辨識結果顯示
-          const Positioned.fill(
+          Positioned.fill(
             child: Align(
               alignment: Alignment.topLeft,
               child: Padding(
@@ -185,11 +207,62 @@ class TakePictureFloatingActionButton extends StatelessWidget {
 
   final BuildContext parentContext;
 
+  Future<void> _showQuestionDialog(BuildContext context) async {
+    final bloc = context.read<ExpireDateBloc>();
+    final controller = TextEditingController(
+      text: bloc.state.inventoryQuestion,
+    );
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: controller,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      hintText: '請輸入問題...',
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                    ),
+                    autofocus: true,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                TextButton(
+                  onPressed: () =>
+                      Navigator.of(dialogContext).pop(controller.text),
+                  child: const Text('確定'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('取消'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (result != null) {
+      bloc.add(InventoryQuestionChanged(question: result));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ExpireDateBloc, ExpireDateState>(
       builder: (context, state) {
-        return FloatingActionButton(
+        final cameraFab = FloatingActionButton(
+          heroTag: 'camera_fab',
           onPressed: () async {
             try {
               final image = await state.cameraController!.takePicture();
@@ -214,13 +287,6 @@ class TakePictureFloatingActionButton extends StatelessWidget {
                   InventoryRecognized(imagePath: image.path),
                 );
               }
-
-              // await Navigator.of(context).push(
-              //   MaterialPageRoute<void>(
-              //     builder: (context) =>
-              //         DisplayPictureScreen(imagePath: croppedPath),
-              //   ),
-              // );
             } catch (e) {
               debugPrint('Error: $e');
             }
@@ -229,6 +295,23 @@ class TakePictureFloatingActionButton extends StatelessWidget {
               ? const CircularProgressIndicator()
               : const Icon(Icons.camera_alt),
         );
+
+        if (state.appMode == AppMode.inventory) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              FloatingActionButton(
+                heroTag: 'question_fab',
+                onPressed: () => _showQuestionDialog(context),
+                child: const Icon(Icons.edit),
+              ),
+              const SizedBox(height: 16),
+              cameraFab,
+            ],
+          );
+        }
+
+        return cameraFab;
       },
     );
   }
@@ -289,41 +372,44 @@ class AppModeToggleButton extends StatelessWidget {
     return BlocBuilder<ExpireDateBloc, ExpireDateState>(
       buildWhen: (previous, current) => previous.appMode != current.appMode,
       builder: (context, state) {
-        return Positioned.fill(
-          child: Align(
-            alignment: Alignment.topRight,
-            child: Padding(
-              padding: const EdgeInsets.only(top: 40, right: 10),
-              child: ToggleButtons(
-                isSelected: [
-                  state.appMode == AppMode.expireDate,
-                  state.appMode == AppMode.inventory,
-                ],
-                onPressed: (index) {
-                  context.read<ExpireDateBloc>().add(
-                    AppModeChanged(
-                      appMode: index == 0
-                          ? AppMode.expireDate
-                          : AppMode.inventory,
-                    ),
-                  );
-                },
-                borderRadius: BorderRadius.circular(8),
-                selectedColor: Colors.white,
-                fillColor: Colors.blue,
-                children: const [
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12),
-                    child: Text('效期'),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12),
-                    child: Text('盤點'),
-                  ),
-                ],
-              ),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '模式選擇',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
-          ),
+            const SizedBox(height: 8),
+            ToggleButtons(
+              isSelected: [
+                state.appMode == AppMode.expireDate,
+                state.appMode == AppMode.inventory,
+              ],
+              onPressed: (index) {
+                context.read<ExpireDateBloc>().add(
+                  AppModeChanged(
+                    appMode: index == 0
+                        ? AppMode.expireDate
+                        : AppMode.inventory,
+                  ),
+                );
+                Navigator.pop(context); // 關閉 drawer
+              },
+              borderRadius: BorderRadius.circular(8),
+              selectedColor: Colors.white,
+              fillColor: Colors.blue,
+              children: const [
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12),
+                  child: Text('效期'),
+                ),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12),
+                  child: Text('盤點'),
+                ),
+              ],
+            ),
+          ],
         );
       },
     );

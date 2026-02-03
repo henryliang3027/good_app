@@ -28,6 +28,7 @@ class ExpireDateBloc extends Bloc<ExpireDateEvent, ExpireDateState> {
     on<ExpireDateRecognized>(_onExpireDateRecognized);
     on<InventoryRecognized>(_onInventoryRecognized);
     on<AppModeChanged>(_onAppModeChanged);
+    on<InventoryQuestionChanged>(_onInventoryQuestionChanged);
 
     add(ExpireDateInitialize());
   }
@@ -242,5 +243,12 @@ class ExpireDateBloc extends Bloc<ExpireDateEvent, ExpireDateState> {
         state.copyWith(appMode: event.appMode, cameraController: controller),
       );
     }
+  }
+
+  void _onInventoryQuestionChanged(
+    InventoryQuestionChanged event,
+    Emitter<ExpireDateState> emit,
+  ) {
+    emit(state.copyWith(inventoryQuestion: event.question));
   }
 }
