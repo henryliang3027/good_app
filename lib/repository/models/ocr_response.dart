@@ -10,7 +10,7 @@ class OcrResponse {
   });
 
   final int count;
-  final OcrDate? date;
+  final OcrDateInfo? date;
 
   /// 是否有辨識到有效日期
   bool get hasValidDate => count > 0 && date != null;
@@ -19,6 +19,22 @@ class OcrResponse {
       _$OcrResponseFromJson(json);
 
   Map<String, dynamic> toJson() => _$OcrResponseToJson(this);
+}
+
+@JsonSerializable()
+class OcrDateInfo {
+  const OcrDateInfo({
+    this.production,
+    this.expiration,
+  });
+
+  final OcrDate? production;
+  final OcrDate? expiration;
+
+  factory OcrDateInfo.fromJson(Map<String, dynamic> json) =>
+      _$OcrDateInfoFromJson(json);
+
+  Map<String, dynamic> toJson() => _$OcrDateInfoToJson(this);
 }
 
 @JsonSerializable()

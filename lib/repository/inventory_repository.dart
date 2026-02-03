@@ -17,22 +17,20 @@ class InventoryRepository {
   /// [imagePath] 圖片檔案路徑
   /// 返回 OCR 辨識結果
   Future<InventoryResponse> recognizeInventory({
-    required String imagePath,
+    required Uint8List imageBytes,
   }) async {
-    final File imageFile = File(imagePath);
-    final List<int> imageBytes = await imageFile.readAsBytes();
     final String base64Image = base64Encode(imageBytes);
 
-    Uint8List uint8List = Uint8List.fromList(imageBytes);
+    // Uint8List uint8List = Uint8List.fromList(imageBytes);
 
-    final decodedImage = img.decodeImage(uint8List);
-    if (decodedImage != null) {
-      developer.log(
-        'Image size: ${decodedImage.width} x ${decodedImage.height}, '
-        'bytes: ${imageBytes.length}',
-        name: 'ExpireDateRepository',
-      );
-    }
+    // final decodedImage = img.decodeImage(uint8List);
+    // if (decodedImage != null) {
+    //   developer.log(
+    //     'Image size: ${decodedImage.width} x ${decodedImage.height}, '
+    //     'bytes: ${imageBytes.length}',
+    //     name: 'ExpireDateRepository',
+    //   );
+    // }
 
     final response = await _dio.post(
       '$_endpoint/inventory_base64',

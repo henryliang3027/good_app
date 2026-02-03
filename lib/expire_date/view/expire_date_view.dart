@@ -11,6 +11,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:good_app/core/constants.dart';
 import 'package:good_app/core/form_status.dart';
 import 'package:good_app/expire_date/bloc/expire_date_bloc/expire_date_bloc.dart';
+import 'package:good_app/repository/models/ocr_response.dart';
 import 'package:image/image.dart' as img;
 
 class ExpireDateView extends StatelessWidget {
@@ -356,6 +357,34 @@ class _OcrResultDisplayState extends State<OcrResultDisplay> {
     super.dispose();
   }
 
+  String formatDate({required OcrDate ocrDate}) {
+    return '${ocrDate.year}年${ocrDate.month}月${ocrDate.day}日';
+  }
+
+  Widget productionDateDisplayWidget({required OcrDate ocrDate}) {
+    String date = formatDate(ocrDate: ocrDate);
+    return Text(
+      '製造：$date',
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 20,
+        fontWeight: FontWeight.bold,
+      ),
+    );
+  }
+
+  Widget expirationDateDisplayWidget({required OcrDate ocrDate}) {
+    String date = formatDate(ocrDate: ocrDate);
+    return Text(
+      '有效：$date',
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 20,
+        fontWeight: FontWeight.bold,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocListener<ExpireDateBloc, ExpireDateState>(
@@ -423,14 +452,14 @@ class _OcrResultDisplayState extends State<OcrResultDisplay> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (response.hasValidDate && response.date != null) ...[
-                    Text(
-                      '${response.date!.year} 年 ${response.date!.month} 月 ${response.date!.day} 日',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
+                    if (response.date!.expiration != null)
+                      expirationDateDisplayWidget(
+                        ocrDate: response.date!.expiration!,
                       ),
-                    ),
+                    if (response.date!.production != null)
+                      productionDateDisplayWidget(
+                        ocrDate: response.date!.production!,
+                      ),
                   ] else
                     Text(
                       '無法辨識效期',

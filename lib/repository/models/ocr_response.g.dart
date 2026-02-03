@@ -10,11 +10,26 @@ OcrResponse _$OcrResponseFromJson(Map<String, dynamic> json) => OcrResponse(
   count: (json['count'] as num).toInt(),
   date: json['date'] == null
       ? null
-      : OcrDate.fromJson(json['date'] as Map<String, dynamic>),
+      : OcrDateInfo.fromJson(json['date'] as Map<String, dynamic>),
 );
 
 Map<String, dynamic> _$OcrResponseToJson(OcrResponse instance) =>
     <String, dynamic>{'count': instance.count, 'date': instance.date};
+
+OcrDateInfo _$OcrDateInfoFromJson(Map<String, dynamic> json) => OcrDateInfo(
+  production: json['production'] == null
+      ? null
+      : OcrDate.fromJson(json['production'] as Map<String, dynamic>),
+  expiration: json['expiration'] == null
+      ? null
+      : OcrDate.fromJson(json['expiration'] as Map<String, dynamic>),
+);
+
+Map<String, dynamic> _$OcrDateInfoToJson(OcrDateInfo instance) =>
+    <String, dynamic>{
+      'production': instance.production,
+      'expiration': instance.expiration,
+    };
 
 OcrDate _$OcrDateFromJson(Map<String, dynamic> json) => OcrDate(
   year: (json['year'] as num).toInt(),

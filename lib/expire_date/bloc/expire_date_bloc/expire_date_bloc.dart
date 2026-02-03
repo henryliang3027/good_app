@@ -42,17 +42,17 @@ class ExpireDateBloc extends Bloc<ExpireDateEvent, ExpireDateState> {
     emit(state.copyWith(formStatus: FormStatus.requestInProgress));
 
     List<CameraDescription> cameraDescriptions = await availableCameras();
-    CameraDescription cameraDescription = cameraDescriptions[2];
+    CameraDescription cameraDescription = cameraDescriptions[0];
     CameraController controller = CameraController(
       cameraDescription,
-      ResolutionPreset.ultraHigh,
+      ResolutionPreset.medium,
     );
     await controller.initialize();
 
-    double getMaxZoomLevel = await controller.getMaxZoomLevel();
-    double getMinZoomLevel = await controller.getMinZoomLevel();
-    controller.setFocusMode(FocusMode.auto);
-    controller.setZoomLevel(2.0);
+    // double getMaxZoomLevel = await controller.getMaxZoomLevel();
+    // double getMinZoomLevel = await controller.getMinZoomLevel();
+    // controller.setFocusMode(FocusMode.auto);
+    // controller.setZoomLevel(2.0);
     emit(
       state.copyWith(
         formStatus: FormStatus.requestSuccess,
@@ -155,10 +155,27 @@ class ExpireDateBloc extends Bloc<ExpireDateEvent, ExpireDateState> {
       ),
     );
 
+    final stopwatch = Stopwatch()..start();
+
+    final File imageFile = File(event.imagePath);
+    final bytes = await imageFile.readAsBytes();
+    final img.Image originalImage = img.decodeImage(bytes)!;
+    Uint8List imageBytes = Uint8List.fromList(
+      img.encodeJpg(originalImage, quality: 100),
+    );
+
+    stopwatch.stop();
+    print('Image processing time: ${stopwatch.elapsedMilliseconds} ms');
+
     try {
+      final stopwatch = Stopwatch()..start();
+
       final result = await _inventoryRepository.recognizeInventory(
-        imagePath: event.imagePath,
+        imageBytes: imageBytes,
       );
+
+      stopwatch.stop();
+      print('recognize time: ${stopwatch.elapsedMilliseconds} ms');
 
       emit(
         state.copyWith(
@@ -205,7 +222,10 @@ class ExpireDateBloc extends Bloc<ExpireDateEvent, ExpireDateState> {
         cameraDescription,
         ResolutionPreset.medium,
       );
+
       await controller.initialize();
+      controller.setFlashMode(FlashMode.off);
+
       emit(
         state.copyWith(appMode: event.appMode, cameraController: controller),
       );
@@ -217,6 +237,7 @@ class ExpireDateBloc extends Bloc<ExpireDateEvent, ExpireDateState> {
         ResolutionPreset.high,
       );
       await controller.initialize();
+      controller.setFlashMode(FlashMode.off);
       emit(
         state.copyWith(appMode: event.appMode, cameraController: controller),
       );
