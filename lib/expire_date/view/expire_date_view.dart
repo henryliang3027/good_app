@@ -318,7 +318,7 @@ class AppModeToggleButton extends StatelessWidget {
                   ),
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 12),
-                    child: Text('庫存'),
+                    child: Text('盤點'),
                   ),
                 ],
               ),
