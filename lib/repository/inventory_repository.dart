@@ -15,9 +15,11 @@ class InventoryRepository {
 
   /// 發送圖片到 OCR API 進行效期辨識
   /// [imagePath] 圖片檔案路徑
+  /// [question] 用戶輸入的問題
   /// 返回 OCR 辨識結果
   Future<InventoryResponse> recognizeInventory({
     required Uint8List imageBytes,
+    required String question,
   }) async {
     final String base64Image = base64Encode(imageBytes);
 
@@ -29,7 +31,10 @@ class InventoryRepository {
 
     final response = await _dio.post(
       '$_endpoint/inventory_base64',
-      data: {'image_base64': base64Image},
+      data: {
+        'image_base64': base64Image,
+        'question': question,
+      },
       options: Options(
         headers: {'Content-Type': 'application/json'},
         sendTimeout: const Duration(seconds: 10),

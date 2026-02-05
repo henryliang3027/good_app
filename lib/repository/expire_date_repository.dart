@@ -28,14 +28,14 @@ class ExpireDateRepository {
     required Uint8List imageBytes,
   }) async {
     // Debug: check image size
-    // final decodedImage = img.decodeImage(imageBytes);
-    // if (decodedImage != null) {
-    //   developer.log(
-    //     'Image size: ${decodedImage.width} x ${decodedImage.height}, '
-    //     'bytes: ${imageBytes.length}',
-    //     name: 'ExpireDateRepository',
-    //   );
-    // }
+    final decodedImage = img.decodeImage(imageBytes);
+    if (decodedImage != null) {
+      developer.log(
+        'Image size: ${decodedImage.width} x ${decodedImage.height}, '
+        'bytes: ${imageBytes.length}',
+        name: 'ExpireDateRepository',
+      );
+    }
 
     final String base64Image = base64Encode(imageBytes);
 

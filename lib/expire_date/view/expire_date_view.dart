@@ -185,11 +185,55 @@ class TakePictureFloatingActionButton extends StatelessWidget {
 
   final BuildContext parentContext;
 
+  void _showQuestionDialog(BuildContext context) {
+    final TextEditingController questionController = TextEditingController(
+      text: context.read<ExpireDateBloc>().state.question,
+    );
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          content: Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  controller: questionController,
+                  decoration: const InputDecoration(
+                    hintText: '請輸入問題',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              TextButton(
+                onPressed: () {
+                  context.read<ExpireDateBloc>().add(
+                    QuestionChanged(question: questionController.text),
+                  );
+                  Navigator.of(dialogContext).pop();
+                },
+                child: const Text('OK'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(dialogContext).pop();
+                },
+                child: const Text('Cancel'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ExpireDateBloc, ExpireDateState>(
       builder: (context, state) {
-        return FloatingActionButton(
+        final cameraButton = FloatingActionButton(
+          heroTag: 'camera_button',
           onPressed: () async {
             try {
               final image = await state.cameraController!.takePicture();
@@ -229,6 +273,23 @@ class TakePictureFloatingActionButton extends StatelessWidget {
               ? const CircularProgressIndicator()
               : const Icon(Icons.camera_alt),
         );
+
+        if (state.appMode == AppMode.inventory) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              FloatingActionButton(
+                heroTag: 'question_button',
+                onPressed: () => _showQuestionDialog(context),
+                child: const Icon(Icons.question_answer),
+              ),
+              const SizedBox(height: 16),
+              cameraButton,
+            ],
+          );
+        }
+
+        return cameraButton;
       },
     );
   }

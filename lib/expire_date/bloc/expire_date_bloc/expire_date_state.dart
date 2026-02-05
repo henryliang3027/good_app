@@ -11,6 +11,7 @@ class ExpireDateState extends Equatable {
     this.inventoryResponse,
     this.errorMessage = '',
     this.appMode = AppMode.expireDate,
+    this.question = '統計圖中的商品',
   });
 
   final FormStatus formStatus;
@@ -20,6 +21,7 @@ class ExpireDateState extends Equatable {
   final InventoryResponse? inventoryResponse;
   final String errorMessage;
   final AppMode appMode;
+  final String question;
 
   ExpireDateState copyWith({
     FormStatus? formStatus,
@@ -29,6 +31,7 @@ class ExpireDateState extends Equatable {
     InventoryResponse? inventoryResponse,
     String? errorMessage,
     AppMode? appMode,
+    String? question,
   }) {
     return ExpireDateState(
       formStatus: formStatus ?? this.formStatus,
@@ -38,6 +41,7 @@ class ExpireDateState extends Equatable {
       inventoryResponse: inventoryResponse ?? this.inventoryResponse,
       errorMessage: errorMessage ?? this.errorMessage,
       appMode: appMode ?? this.appMode,
+      question: question ?? this.question,
     );
   }
 
@@ -50,5 +54,6 @@ class ExpireDateState extends Equatable {
     inventoryResponse,
     errorMessage,
     appMode,
+    question,
   ];
 }

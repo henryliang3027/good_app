@@ -44,3 +44,12 @@ class AppModeChanged extends ExpireDateEvent {
   @override
   List<Object> get props => [appMode];
 }
+
+class QuestionChanged extends ExpireDateEvent {
+  const QuestionChanged({required this.question});
+
+  final String question;
+
+  @override
+  List<Object> get props => [question];
+}
