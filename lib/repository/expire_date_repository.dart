@@ -41,7 +41,7 @@ class ExpireDateRepository {
 
     try {
       final response = await _dio.post<Map<String, dynamic>>(
-        '$_endpoint/ocr_inference_base64',
+        '$_endpoint/glm_ocr_inference_base64',
         data: {'image_base64': base64Image},
         options: Options(
           headers: {'Content-Type': 'application/json'},
