@@ -5,13 +5,19 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:good_app/repository/api_exception_manager.dart';
+import 'package:good_app/repository/date_validator.dart';
 import 'package:good_app/repository/models/ocr_response.dart';
+import 'package:flutter_ppocrv5/flutter_ppocrv5.dart';
 import 'package:image/image.dart' as img;
 
 class ExpireDateRepository {
-  ExpireDateRepository({Dio? dio}) : _dio = dio ?? Dio();
+  ExpireDateRepository({Dio? dio})
+    : _dio = dio ?? Dio(),
+      _ppocrv5 = FlutterPpocrv5();
 
   final Dio _dio;
+  final FlutterPpocrv5 _ppocrv5;
+  bool _modelLoaded = false;
   static const String _endpoint =
       'https://gillian-unhesitative-jestine.ngrok-free.dev';
 
@@ -57,6 +63,90 @@ class ExpireDateRepository {
       return OcrResponse.fromJson(response.data!);
     } on DioException catch (e) {
       throw _handleDioException(e);
+    }
+  }
+
+  /// 預載 PPOCRv5 模型（可在 camera 初始化時提前呼叫）
+  Future<void> ensureModelLoaded() async {
+    if (!_modelLoaded) {
+      _modelLoaded = await _ppocrv5.loadModel();
+      if (!_modelLoaded) {
+        throw const ServerErrorException('PPOCRv5 模型載入失敗');
+      }
+    }
+  }
+
+  /// 使用 camera stream 的 NV21 bytes 直接進行 OCR 辨識
+  Future<OcrResponse> recognizeExpireDateFromStream({
+    required Uint8List nv21Bytes,
+    required int width,
+    required int height,
+    int rotation = 0,
+  }) async {
+    await ensureModelLoaded();
+
+    final results = await _ppocrv5.detectFromImage(
+      nv21Bytes,
+      width,
+      height,
+      rotation: rotation,
+    );
+
+    developer.log(
+      'PPOCRv5 stream detected ${results.length} text regions',
+      name: 'ExpireDateRepository',
+    );
+    for (final result in results) {
+      developer.log(
+        'Text: ${result.text}, Confidence: ${result.confidence}',
+        name: 'ExpireDateRepository',
+      );
+    }
+
+    final combinedText = results.map((r) => '.${r.text}').join(' ');
+    developer.log(
+      'Combined OCR text: $combinedText',
+      name: 'ExpireDateRepository',
+    );
+
+    return DateValidator.extractMultipleDates(combinedText);
+  }
+
+  /// 使用 flutter_ppocrv5 進行本地端 OCR 辨識，並透過 DateValidator 解析日期
+  /// [imageBytes] 圖片位元組資料
+  /// 返回 OCR 辨識結果（與 recognizeExpireDate 相同的 OcrResponse 格式）
+  Future<OcrResponse> recognizeExpireDate2({
+    required Uint8List imageBytes,
+  }) async {
+    await ensureModelLoaded();
+
+    final tempDir = await Directory.systemTemp.createTemp('ocr_');
+    final tempFile = File('${tempDir.path}/image.jpg');
+    try {
+      await tempFile.writeAsBytes(imageBytes);
+      final results = await _ppocrv5.detectFromFile(tempFile.path);
+
+      developer.log(
+        'PPOCRv5 detected ${results.length} text regions',
+        name: 'ExpireDateRepository',
+      );
+      for (final result in results) {
+        developer.log(
+          'Text: ${result.text}, Confidence: ${result.confidence}',
+          name: 'ExpireDateRepository',
+        );
+      }
+
+      // 合併所有辨識文字，用空格分隔
+      final combinedText = results.map((r) => '.${r.text}').join(' ');
+      developer.log(
+        'Combined OCR text: $combinedText',
+        name: 'ExpireDateRepository',
+      );
+
+      return DateValidator.extractMultipleDates(combinedText);
+    } finally {
+      await tempDir.delete(recursive: true);
     }
   }
 

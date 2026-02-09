@@ -110,7 +110,7 @@ class ExpireDateBloc extends Bloc<ExpireDateEvent, ExpireDateState> {
     );
 
     try {
-      final result = await _expireDateRepository.recognizeExpireDate(
+      final result = await _expireDateRepository.recognizeExpireDate2(
         imageBytes: croppedImageByte,
       );
 
