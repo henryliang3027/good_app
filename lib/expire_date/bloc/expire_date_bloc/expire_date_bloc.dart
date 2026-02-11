@@ -104,14 +104,16 @@ class ExpireDateBloc extends Bloc<ExpireDateEvent, ExpireDateState> {
       ),
     );
 
-    Uint8List croppedImageByte = await _cropImage(
-      event.imagePath,
-      event.previewSize,
-    );
+    // Uint8List croppedImageByte = await _cropImage(
+    //   event.imagePath,
+    //   event.previewSize,
+    // );
 
     try {
-      final result = await _expireDateRepository.recognizeExpireDate2(
-        imageBytes: croppedImageByte,
+      final result = await _expireDateRepository.recognizeExpireDateFromStream(
+        nv21Bytes: event.nv21Bytes,
+        width: event.width,
+        height: event.height,
       );
 
       emit(

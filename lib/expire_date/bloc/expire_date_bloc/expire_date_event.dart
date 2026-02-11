@@ -16,15 +16,17 @@ class ExpireDateInitialize extends ExpireDateEvent {
 
 class ExpireDateRecognized extends ExpireDateEvent {
   const ExpireDateRecognized({
-    required this.imagePath,
-    required this.previewSize,
+    required this.nv21Bytes,
+    required this.width,
+    required this.height,
   });
 
-  final String imagePath;
-  final Size previewSize;
+  final Uint8List nv21Bytes;
+  final int width;
+  final int height;
 
   @override
-  List<Object> get props => [imagePath, previewSize];
+  List<Object> get props => [nv21Bytes, width, height];
 }
 
 class InventoryRecognized extends ExpireDateEvent {

@@ -14,6 +14,14 @@ import 'package:good_app/expire_date/bloc/expire_date_bloc/expire_date_bloc.dart
 import 'package:good_app/repository/models/ocr_response.dart';
 import 'package:image/image.dart' as img;
 
+/// Debug: 儲存最新的 crop 圖片
+final ValueNotifier<Uint8List?> _debugCroppedImageNotifier = ValueNotifier(
+  null,
+);
+
+/// 儲存最新的 crop NV21 資料，供拍照按鈕取用
+({Uint8List nv21Bytes, int width, int height})? _latestCropped;
+
 class ExpireDateView extends StatelessWidget {
   const ExpireDateView({super.key});
 
@@ -160,15 +168,95 @@ class AppModeOverlay extends StatelessWidget {
       );
     }
 
-    return BlocBuilder<ExpireDateBloc, ExpireDateState>(
+    /// 直接在 YUV420 raw bytes 上 crop，輸出 NV21 格式
+    /// 可直接對接 recognizeExpireDateFromStream
+    ({Uint8List nv21Bytes, int width, int height}) cropImageStream({
+      required DeviceOrientation deviceOrientation,
+      required CameraImage cameraImage,
+      required Size previewSize,
+    }) {
+      final int srcW = cameraImage.width;
+      final int srcH = cameraImage.height;
+      final yPlane = cameraImage.planes[0];
+      final uPlane = cameraImage.planes[1];
+      final vPlane = cameraImage.planes[2];
+      final int uvPixelStride = uPlane.bytesPerPixel!;
+
+      // 計算裁剪區域，對齊偶數（UV 是半解析度）
+      final double scaleX = srcW / previewSize.width;
+      final double scaleY = srcH / previewSize.height;
+      int cropX = ((previewSize.width - scanWidth) / 2 * scaleX).round() & ~1;
+      int cropY = ((previewSize.height - scanHeight) / 2 * scaleY).round() & ~1;
+      int cropW = ((scanWidth * scaleX).round()) & ~1;
+      int cropH = ((scanHeight * scaleY).round()) & ~1;
+
+      // 邊界檢查
+      cropX = cropX.clamp(0, srcW - 2);
+      cropY = cropY.clamp(0, srcH - 2);
+      cropW = cropW.clamp(2, srcW - cropX);
+      cropH = cropH.clamp(2, srcH - cropY);
+
+      // NV21 格式: [Y data: cropW*cropH] + [VU interleaved: cropW*cropH/2]
+      final int ySize = cropW * cropH;
+      final int vuSize = cropW * (cropH ~/ 2);
+      final nv21 = Uint8List(ySize + vuSize);
+
+      if (deviceOrientation == DeviceOrientation.landscapeLeft) {
+      } else {}
+
+      // Crop Y plane
+      for (int y = 0; y < cropH; y++) {
+        final int srcOffset = (cropY + y) * yPlane.bytesPerRow + cropX;
+        nv21.setRange(y * cropW, y * cropW + cropW, yPlane.bytes, srcOffset);
+      }
+
+      // Crop UV → 組成 NV21 interleaved VU
+      final int vuOffset = ySize;
+      for (int y = 0; y < cropH ~/ 2; y++) {
+        final int srcUVRow = (cropY ~/ 2 + y) * uPlane.bytesPerRow;
+        for (int x = 0; x < cropW ~/ 2; x++) {
+          final int srcUVIndex = srcUVRow + (cropX ~/ 2 + x) * uvPixelStride;
+          final int dstIndex = vuOffset + y * cropW + x * 2;
+          nv21[dstIndex] = vPlane.bytes[srcUVIndex]; // V
+          nv21[dstIndex + 1] = uPlane.bytes[srcUVIndex]; // U
+        }
+      }
+
+      return (nv21Bytes: nv21, width: cropW, height: cropH);
+    }
+
+    return BlocConsumer<ExpireDateBloc, ExpireDateState>(
+      listenWhen: (previous, current) =>
+          previous.formStatus != current.formStatus ||
+          previous.appMode != current.appMode,
+      listener: (context, state) {
+        if (state.formStatus.isRequestSuccess) {
+          if (state.appMode == AppMode.expireDate) {
+            state.cameraController!.startImageStream((CameraImage cameraImage) {
+              _latestCropped = cropImageStream(
+                deviceOrientation:
+                    state.cameraController!.value.deviceOrientation,
+                cameraImage: cameraImage,
+                previewSize: previewSize,
+              );
+            });
+          } else {
+            if (state.cameraController!.value.isStreamingImages) {
+              state.cameraController!.stopImageStream();
+            }
+          }
+        }
+      },
       buildWhen: (previous, current) =>
           previous.formStatus != current.formStatus ||
           previous.appMode != current.appMode,
       builder: (context, state) {
         if (state.formStatus.isRequestSuccess) {
-          return state.appMode == AppMode.expireDate
-              ? buildExpireDateModeWidgets(previewSize)
-              : buildInventoryModeWidgets();
+          if (state.appMode == AppMode.expireDate) {
+            return buildExpireDateModeWidgets(previewSize);
+          } else {
+            return buildInventoryModeWidgets();
+          }
         } else {
           return SizedBox();
         }
@@ -236,35 +324,25 @@ class TakePictureFloatingActionButton extends StatelessWidget {
           heroTag: 'camera_button',
           onPressed: () async {
             try {
-              final image = await state.cameraController!.takePicture();
-
-              if (!context.mounted) return;
-
               if (state.appMode == AppMode.expireDate) {
-                // 取得預覽區域大小
-                final RenderBox? renderBox =
-                    parentContext.findRenderObject() as RenderBox?;
-                final Size previewSize =
-                    renderBox?.size ?? const Size(400, 600);
+                final cropped = _latestCropped;
+                if (cropped == null) return;
 
                 context.read<ExpireDateBloc>().add(
                   ExpireDateRecognized(
-                    imagePath: image.path,
-                    previewSize: previewSize,
+                    nv21Bytes: cropped.nv21Bytes,
+                    width: cropped.width,
+                    height: cropped.height,
                   ),
                 );
               } else if (state.appMode == AppMode.inventory) {
+                final image = await state.cameraController!.takePicture();
+                if (!context.mounted) return;
+
                 context.read<ExpireDateBloc>().add(
                   InventoryRecognized(imagePath: image.path),
                 );
               }
-
-              // await Navigator.of(context).push(
-              //   MaterialPageRoute<void>(
-              //     builder: (context) =>
-              //         DisplayPictureScreen(imagePath: croppedPath),
-              //   ),
-              // );
             } catch (e) {
               debugPrint('Error: $e');
             }
@@ -272,6 +350,23 @@ class TakePictureFloatingActionButton extends StatelessWidget {
           child: state.submissionStatus.isSubmissionInProgress
               ? const CircularProgressIndicator()
               : const Icon(Icons.camera_alt),
+        );
+
+        final debugButton = FloatingActionButton(
+          heroTag: 'debug_crop_button',
+          mini: true,
+          backgroundColor: Colors.red,
+          onPressed: () {
+            final imageBytes = _debugCroppedImageNotifier.value;
+            if (imageBytes != null) {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => DebugCropImagePage(imageBytes: imageBytes),
+                ),
+              );
+            }
+          },
+          child: const Icon(Icons.bug_report),
         );
 
         if (state.appMode == AppMode.inventory) {
@@ -289,7 +384,10 @@ class TakePictureFloatingActionButton extends StatelessWidget {
           );
         }
 
-        return cameraButton;
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [debugButton, const SizedBox(height: 16), cameraButton],
+        );
       },
     );
   }
@@ -724,6 +822,21 @@ class DisplayPictureScreen extends StatefulWidget {
 
   @override
   State<DisplayPictureScreen> createState() => _DisplayPictureScreenState();
+}
+
+/// Debug: 顯示裁剪後圖片的頁面
+class DebugCropImagePage extends StatelessWidget {
+  const DebugCropImagePage({super.key, required this.imageBytes});
+
+  final Uint8List imageBytes;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Debug: Cropped Image')),
+      body: Center(child: InteractiveViewer(child: Image.memory(imageBytes))),
+    );
+  }
 }
 
 class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
