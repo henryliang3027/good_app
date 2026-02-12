@@ -22,6 +22,73 @@ final ValueNotifier<Uint8List?> _debugCroppedImageNotifier = ValueNotifier(
 /// 儲存最新的 crop NV21 資料，供拍照按鈕取用
 ({Uint8List nv21Bytes, int width, int height})? _latestCropped;
 
+/// 畫面穩定偵測器
+class _FrameStabilityDetector {
+  Uint8List? _prevYData;
+  int _stableFrameCount = 0;
+  bool _triggered = false;
+  DateTime _lastTriggerTime = DateTime(0);
+
+  /// 每 N 個像素取樣一次，加速比較
+  static const int _sampleStep = 4;
+
+  /// 平均像素差異低於此值視為穩定（0~255）
+  static const double _diffThreshold = 5.0;
+
+  /// 連續穩定幀數達到此值才觸發
+  static const int _stableFramesRequired = 8;
+
+  /// 觸發後的冷卻時間
+  static const Duration _cooldown = Duration(seconds: 3);
+
+  /// 回傳 true 表示畫面穩定，應觸發辨識
+  bool onFrame(Uint8List yData) {
+    if (_prevYData == null || _prevYData!.length != yData.length) {
+      _prevYData = Uint8List.fromList(yData);
+      _stableFrameCount = 0;
+      return false;
+    }
+
+    // 取樣計算平均差異
+    int totalDiff = 0;
+    int sampleCount = 0;
+    for (int i = 0; i < yData.length; i += _sampleStep) {
+      totalDiff += (yData[i] - _prevYData![i]).abs();
+      sampleCount++;
+    }
+    final double avgDiff = totalDiff / sampleCount;
+
+    // 更新前一幀
+    _prevYData!.setAll(0, yData);
+
+    if (avgDiff < _diffThreshold) {
+      _stableFrameCount++;
+    } else {
+      _stableFrameCount = 0;
+    }
+
+    print("Stable frame count: $_stableFrameCount");
+
+    // 穩定且未觸發且冷卻完成
+    if (_stableFrameCount >= _stableFramesRequired &&
+        DateTime.now().difference(_lastTriggerTime) > _cooldown) {
+      _stableFrameCount = 0;
+      _lastTriggerTime = DateTime.now();
+      return true;
+    }
+
+    return false;
+  }
+
+  void reset() {
+    _prevYData = null;
+    _stableFrameCount = 0;
+    _triggered = false;
+  }
+}
+
+final _stabilityDetector = _FrameStabilityDetector();
+
 class ExpireDateView extends StatelessWidget {
   const ExpireDateView({super.key});
 
@@ -260,13 +327,26 @@ class AppModeOverlay extends StatelessWidget {
       listener: (context, state) {
         if (state.formStatus.isRequestSuccess) {
           if (state.appMode == AppMode.expireDate) {
+            _stabilityDetector.reset();
             state.cameraController!.startImageStream((CameraImage cameraImage) {
-              _latestCropped = cropImageStream(
+              final cropped = cropImageStream(
                 deviceOrientation:
                     state.cameraController!.value.deviceOrientation,
                 cameraImage: cameraImage,
                 previewSize: previewSize,
               );
+              _latestCropped = cropped;
+
+              // 用 cropped Y data 偵測穩定度（NV21 前 w*h bytes 就是 Y）
+              if (_stabilityDetector.onFrame(cropped.nv21Bytes)) {
+                context.read<ExpireDateBloc>().add(
+                  ExpireDateRecognized(
+                    nv21Bytes: cropped.nv21Bytes,
+                    width: cropped.width,
+                    height: cropped.height,
+                  ),
+                );
+              }
             });
           } else {
             if (state.cameraController!.value.isStreamingImages) {
@@ -397,7 +477,16 @@ class TakePictureFloatingActionButton extends StatelessWidget {
 
         return Column(
           mainAxisSize: MainAxisSize.min,
-          children: [const SizedBox(height: 16), cameraButton],
+          children: state.appMode == AppMode.inventory
+              ? [
+                  FloatingActionButton(
+                    heroTag: 'question_button',
+                    onPressed: () => _showQuestionDialog(context),
+                    child: const Icon(Icons.question_answer),
+                  ),
+                  cameraButton,
+                ]
+              : [],
         );
       },
     );
@@ -615,7 +704,7 @@ class _OcrResultDisplayState extends State<OcrResultDisplay> {
               decoration: BoxDecoration(
                 color: response.hasValidDate
                     ? Colors.green.withValues(alpha: 0.9)
-                    : Colors.orange.withValues(alpha: 0.9),
+                    : Colors.transparent,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Column(
@@ -630,15 +719,7 @@ class _OcrResultDisplayState extends State<OcrResultDisplay> {
                       productionDateDisplayWidget(
                         ocrDate: response.date!.production!,
                       ),
-                  ] else
-                    Text(
-                      '無法辨識效期',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                  ],
                 ],
               ),
             );
