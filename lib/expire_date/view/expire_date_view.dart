@@ -201,24 +201,52 @@ class AppModeOverlay extends StatelessWidget {
       final int vuSize = cropW * (cropH ~/ 2);
       final nv21 = Uint8List(ySize + vuSize);
 
-      if (deviceOrientation == DeviceOrientation.landscapeLeft) {
-      } else {}
+      if (deviceOrientation == DeviceOrientation.landscapeRight) {
+        // Crop Y + 180° flip（一次完成）
+        for (int y = 0; y < cropH; y++) {
+          final int srcRow = (cropY + y) * yPlane.bytesPerRow + cropX;
+          final int dstRow = (cropH - 1 - y) * cropW;
 
-      // Crop Y plane
-      for (int y = 0; y < cropH; y++) {
-        final int srcOffset = (cropY + y) * yPlane.bytesPerRow + cropX;
-        nv21.setRange(y * cropW, y * cropW + cropW, yPlane.bytes, srcOffset);
-      }
+          for (int x = 0; x < cropW; x++) {
+            nv21[dstRow + (cropW - 1 - x)] = yPlane.bytes[srcRow + x];
+          }
+        }
 
-      // Crop UV → 組成 NV21 interleaved VU
-      final int vuOffset = ySize;
-      for (int y = 0; y < cropH ~/ 2; y++) {
-        final int srcUVRow = (cropY ~/ 2 + y) * uPlane.bytesPerRow;
-        for (int x = 0; x < cropW ~/ 2; x++) {
-          final int srcUVIndex = srcUVRow + (cropX ~/ 2 + x) * uvPixelStride;
-          final int dstIndex = vuOffset + y * cropW + x * 2;
-          nv21[dstIndex] = vPlane.bytes[srcUVIndex]; // V
-          nv21[dstIndex + 1] = uPlane.bytes[srcUVIndex]; // U
+        // Crop UV + 180° flip（注意 2 bytes 為一組）
+        final int uvStart = ySize;
+
+        for (int y = 0; y < cropH ~/ 2; y++) {
+          final int srcUVRow = (cropY ~/ 2 + y) * uPlane.bytesPerRow;
+
+          final int dstRow = (cropH ~/ 2 - 1 - y) * cropW;
+
+          for (int x = 0; x < cropW ~/ 2; x++) {
+            final int srcIndex = srcUVRow + (cropX ~/ 2 + x) * uvPixelStride;
+
+            final int dstIndex = uvStart + dstRow + (cropW - 2 - x * 2);
+
+            // NV21 是 VU
+            nv21[dstIndex] = vPlane.bytes[srcIndex];
+            nv21[dstIndex + 1] = uPlane.bytes[srcIndex];
+          }
+        }
+      } else {
+        // Crop Y plane
+        for (int y = 0; y < cropH; y++) {
+          final int srcOffset = (cropY + y) * yPlane.bytesPerRow + cropX;
+          nv21.setRange(y * cropW, y * cropW + cropW, yPlane.bytes, srcOffset);
+        }
+
+        // Crop UV → 組成 NV21 interleaved VU
+        final int vuOffset = ySize;
+        for (int y = 0; y < cropH ~/ 2; y++) {
+          final int srcUVRow = (cropY ~/ 2 + y) * uPlane.bytesPerRow;
+          for (int x = 0; x < cropW ~/ 2; x++) {
+            final int srcUVIndex = srcUVRow + (cropX ~/ 2 + x) * uvPixelStride;
+            final int dstIndex = vuOffset + y * cropW + x * 2;
+            nv21[dstIndex] = vPlane.bytes[srcUVIndex]; // V
+            nv21[dstIndex + 1] = uPlane.bytes[srcUVIndex]; // U
+          }
         }
       }
 
@@ -352,23 +380,6 @@ class TakePictureFloatingActionButton extends StatelessWidget {
               : const Icon(Icons.camera_alt),
         );
 
-        final debugButton = FloatingActionButton(
-          heroTag: 'debug_crop_button',
-          mini: true,
-          backgroundColor: Colors.red,
-          onPressed: () {
-            final imageBytes = _debugCroppedImageNotifier.value;
-            if (imageBytes != null) {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => DebugCropImagePage(imageBytes: imageBytes),
-                ),
-              );
-            }
-          },
-          child: const Icon(Icons.bug_report),
-        );
-
         if (state.appMode == AppMode.inventory) {
           return Column(
             mainAxisSize: MainAxisSize.min,
@@ -386,7 +397,7 @@ class TakePictureFloatingActionButton extends StatelessWidget {
 
         return Column(
           mainAxisSize: MainAxisSize.min,
-          children: [debugButton, const SizedBox(height: 16), cameraButton],
+          children: [const SizedBox(height: 16), cameraButton],
         );
       },
     );
