@@ -14,8 +14,8 @@ class ExpireDateInitialize extends ExpireDateEvent {
   List<Object> get props => [];
 }
 
-class ExpireDateRecognized extends ExpireDateEvent {
-  const ExpireDateRecognized({
+class ExpireDateLocalRecognized extends ExpireDateEvent {
+  const ExpireDateLocalRecognized({
     required this.nv21Bytes,
     required this.width,
     required this.height,
@@ -27,6 +27,15 @@ class ExpireDateRecognized extends ExpireDateEvent {
 
   @override
   List<Object> get props => [nv21Bytes, width, height];
+}
+
+class ExpireDateServerRecognized extends ExpireDateEvent {
+  const ExpireDateServerRecognized({required this.jpegBytes});
+
+  final Uint8List jpegBytes;
+
+  @override
+  List<Object> get props => [jpegBytes];
 }
 
 class InventoryRecognized extends ExpireDateEvent {
@@ -54,4 +63,13 @@ class QuestionChanged extends ExpireDateEvent {
 
   @override
   List<Object> get props => [question];
+}
+
+class OcrTypeChanged extends ExpireDateEvent {
+  const OcrTypeChanged({required this.ocrType});
+
+  final OcrType ocrType;
+
+  @override
+  List<Object> get props => [ocrType];
 }

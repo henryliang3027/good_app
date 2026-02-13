@@ -67,8 +67,6 @@ class _FrameStabilityDetector {
       _stableFrameCount = 0;
     }
 
-    print("Stable frame count: $_stableFrameCount");
-
     // 穩定且未觸發且冷卻完成
     if (_stableFrameCount >= _stableFramesRequired &&
         DateTime.now().difference(_lastTriggerTime) > _cooldown) {
@@ -139,7 +137,8 @@ class CameraView extends StatelessWidget {
     return BlocBuilder<ExpireDateBloc, ExpireDateState>(
       buildWhen: (previous, current) =>
           previous.formStatus != current.formStatus ||
-          previous.appMode != current.appMode,
+          previous.appMode != current.appMode ||
+          previous.ocrType != current.ocrType,
       builder: (context, state) {
         if (state.formStatus.isRequestSuccess) {
           return SizedBox.expand(child: CameraPreview(state.cameraController!));
@@ -210,6 +209,44 @@ class AppModeOverlay extends StatelessWidget {
               child: Padding(
                 padding: EdgeInsets.only(top: 40, left: 10),
                 child: OcrResultDisplay(),
+              ),
+            ),
+          ),
+
+          // 切換 server 辨識或 local 辨識 toggle button
+          Positioned.fill(
+            child: Align(
+              alignment: Alignment.bottomRight,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 40, right: 10),
+                child: ToggleButtons(
+                  isSelected: [
+                    context.read<ExpireDateBloc>().state.ocrType ==
+                        OcrType.server,
+                    context.read<ExpireDateBloc>().state.ocrType ==
+                        OcrType.local,
+                  ],
+                  onPressed: (index) {
+                    context.read<ExpireDateBloc>().add(
+                      OcrTypeChanged(
+                        ocrType: index == 0 ? OcrType.server : OcrType.local,
+                      ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  selectedColor: Colors.white,
+                  fillColor: Colors.blue,
+                  children: const [
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: Text('雲端'),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: Text('地端'),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -323,11 +360,13 @@ class AppModeOverlay extends StatelessWidget {
     return BlocConsumer<ExpireDateBloc, ExpireDateState>(
       listenWhen: (previous, current) =>
           previous.formStatus != current.formStatus ||
-          previous.appMode != current.appMode,
+          previous.appMode != current.appMode ||
+          previous.ocrType != current.ocrType,
       listener: (context, state) {
         if (state.formStatus.isRequestSuccess) {
           if (state.appMode == AppMode.expireDate) {
             _stabilityDetector.reset();
+
             state.cameraController!.startImageStream((CameraImage cameraImage) {
               final cropped = cropImageStream(
                 deviceOrientation:
@@ -337,15 +376,38 @@ class AppModeOverlay extends StatelessWidget {
               );
               _latestCropped = cropped;
 
+              print("OcrType ${state.ocrType}");
+
               // 用 cropped Y data 偵測穩定度（NV21 前 w*h bytes 就是 Y）
               if (_stabilityDetector.onFrame(cropped.nv21Bytes)) {
-                context.read<ExpireDateBloc>().add(
-                  ExpireDateRecognized(
-                    nv21Bytes: cropped.nv21Bytes,
-                    width: cropped.width,
-                    height: cropped.height,
-                  ),
-                );
+                if (state.ocrType == OcrType.local) {
+                  context.read<ExpireDateBloc>().add(
+                    ExpireDateLocalRecognized(
+                      nv21Bytes: cropped.nv21Bytes,
+                      width: cropped.width,
+                      height: cropped.height,
+                    ),
+                  );
+                } else {
+                  // 轉成 JPEG 後傳給 server 辨識
+                  try {
+                    final imgData = img.Image.fromBytes(
+                      width: cropped.width,
+                      height: cropped.height,
+                      bytes: cropped.nv21Bytes.buffer,
+                      order: img.ChannelOrder.red,
+                      numChannels: 1,
+                    );
+                    final jpegBytes = Uint8List.fromList(
+                      img.encodeJpg(imgData),
+                    );
+                    context.read<ExpireDateBloc>().add(
+                      ExpireDateServerRecognized(jpegBytes: jpegBytes),
+                    );
+                  } catch (e) {
+                    print("轉 JPEG 失敗: $e");
+                  }
+                }
               }
             });
           } else {
@@ -357,7 +419,8 @@ class AppModeOverlay extends StatelessWidget {
       },
       buildWhen: (previous, current) =>
           previous.formStatus != current.formStatus ||
-          previous.appMode != current.appMode,
+          previous.appMode != current.appMode ||
+          previous.ocrType != current.ocrType,
       builder: (context, state) {
         if (state.formStatus.isRequestSuccess) {
           if (state.appMode == AppMode.expireDate) {
@@ -437,7 +500,7 @@ class TakePictureFloatingActionButton extends StatelessWidget {
                 if (cropped == null) return;
 
                 context.read<ExpireDateBloc>().add(
-                  ExpireDateRecognized(
+                  ExpireDateLocalRecognized(
                     nv21Bytes: cropped.nv21Bytes,
                     width: cropped.width,
                     height: cropped.height,

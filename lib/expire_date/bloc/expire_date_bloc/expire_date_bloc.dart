@@ -25,11 +25,12 @@ class ExpireDateBloc extends Bloc<ExpireDateEvent, ExpireDateState> {
        _inventoryRepository = inventoryRepository,
        super(ExpireDateState()) {
     on<ExpireDateInitialize>(_onExpireDateInitialized);
-    on<ExpireDateRecognized>(_onExpireDateRecognized);
+    on<ExpireDateLocalRecognized>(_onExpireDateLocalRecognized);
+    on<ExpireDateServerRecognized>(_onExpireDateServerRecognized);
     on<InventoryRecognized>(_onInventoryRecognized);
     on<AppModeChanged>(_onAppModeChanged);
     on<QuestionChanged>(_onQuestionChanged);
-
+    on<OcrTypeChanged>(_onOcrTypeChanged);
     add(ExpireDateInitialize());
   }
 
@@ -93,10 +94,12 @@ class ExpireDateBloc extends Bloc<ExpireDateEvent, ExpireDateState> {
     return Uint8List.fromList(img.encodeJpg(croppedImage, quality: 100));
   }
 
-  Future<void> _onExpireDateRecognized(
-    ExpireDateRecognized event,
+  Future<void> _onExpireDateLocalRecognized(
+    ExpireDateLocalRecognized event,
     Emitter<ExpireDateState> emit,
   ) async {
+    print("state.ocrType: ${state.ocrType}"); // Debug log for OCR type
+
     emit(
       state.copyWith(
         submissionStatus: SubmissionStatus.submissionInProgress,
@@ -104,16 +107,60 @@ class ExpireDateBloc extends Bloc<ExpireDateEvent, ExpireDateState> {
       ),
     );
 
-    // Uint8List croppedImageByte = await _cropImage(
-    //   event.imagePath,
-    //   event.previewSize,
-    // );
-
     try {
       final result = await _expireDateRepository.recognizeExpireDateFromStream(
         nv21Bytes: event.nv21Bytes,
         width: event.width,
         height: event.height,
+      );
+
+      emit(
+        state.copyWith(
+          submissionStatus: SubmissionStatus.submissionSuccess,
+          ocrResponse: result,
+          errorMessage: '',
+        ),
+      );
+    } on ServerUnavailableException catch (e) {
+      emit(
+        state.copyWith(
+          submissionStatus: SubmissionStatus.submissionFailure,
+          errorMessage: e.message,
+        ),
+      );
+    } on RequestTimeoutException catch (e) {
+      emit(
+        state.copyWith(
+          submissionStatus: SubmissionStatus.submissionFailure,
+          errorMessage: e.message,
+        ),
+      );
+    } on ApiClientException catch (e) {
+      emit(
+        state.copyWith(
+          submissionStatus: SubmissionStatus.submissionFailure,
+          errorMessage: e.message,
+        ),
+      );
+    }
+  }
+
+  Future<void> _onExpireDateServerRecognized(
+    ExpireDateServerRecognized event,
+    Emitter<ExpireDateState> emit,
+  ) async {
+    print("state.ocrType: ${state.ocrType}"); // Debug log for OCR type
+
+    emit(
+      state.copyWith(
+        submissionStatus: SubmissionStatus.submissionInProgress,
+        errorMessage: '',
+      ),
+    );
+
+    try {
+      final result = await _expireDateRepository.recognizeExpireDate(
+        imageBytes: event.jpegBytes,
       );
 
       emit(
@@ -253,5 +300,23 @@ class ExpireDateBloc extends Bloc<ExpireDateEvent, ExpireDateState> {
     Emitter<ExpireDateState> emit,
   ) {
     emit(state.copyWith(question: event.question));
+  }
+
+  Future<void> _onOcrTypeChanged(
+    OcrTypeChanged event,
+    Emitter<ExpireDateState> emit,
+  ) async {
+    state.cameraController!.dispose();
+    List<CameraDescription> cameraDescriptions = await availableCameras();
+    CameraDescription cameraDescription = cameraDescriptions[0];
+    CameraController controller = CameraController(
+      cameraDescription,
+      ResolutionPreset.medium,
+    );
+
+    await controller.initialize();
+    controller.setFlashMode(FlashMode.off);
+
+    emit(state.copyWith(cameraController: controller, ocrType: event.ocrType));
   }
 }

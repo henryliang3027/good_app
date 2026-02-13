@@ -2,6 +2,8 @@ part of 'expire_date_bloc.dart';
 
 enum AppMode { expireDate, inventory }
 
+enum OcrType { server, local }
+
 class ExpireDateState extends Equatable {
   const ExpireDateState({
     this.formStatus = FormStatus.none,
@@ -10,6 +12,7 @@ class ExpireDateState extends Equatable {
     this.ocrResponse,
     this.inventoryResponse,
     this.errorMessage = '',
+    this.ocrType = OcrType.local,
     this.appMode = AppMode.expireDate,
     this.question = '統計圖中的商品',
   });
@@ -20,6 +23,7 @@ class ExpireDateState extends Equatable {
   final OcrResponse? ocrResponse;
   final InventoryResponse? inventoryResponse;
   final String errorMessage;
+  final OcrType ocrType;
   final AppMode appMode;
   final String question;
 
@@ -30,6 +34,7 @@ class ExpireDateState extends Equatable {
     OcrResponse? ocrResponse,
     InventoryResponse? inventoryResponse,
     String? errorMessage,
+    OcrType? ocrType,
     AppMode? appMode,
     String? question,
   }) {
@@ -40,6 +45,7 @@ class ExpireDateState extends Equatable {
       ocrResponse: ocrResponse ?? this.ocrResponse,
       inventoryResponse: inventoryResponse ?? this.inventoryResponse,
       errorMessage: errorMessage ?? this.errorMessage,
+      ocrType: ocrType ?? this.ocrType,
       appMode: appMode ?? this.appMode,
       question: question ?? this.question,
     );
@@ -53,6 +59,7 @@ class ExpireDateState extends Equatable {
     ocrResponse,
     inventoryResponse,
     errorMessage,
+    ocrType,
     appMode,
     question,
   ];
