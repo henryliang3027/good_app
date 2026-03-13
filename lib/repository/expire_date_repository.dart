@@ -21,6 +21,8 @@ class ExpireDateRepository {
   static const String _endpoint =
       'https://gillian-unhesitative-jestine.ngrok-free.dev';
 
+  // static const String _endpoint = 'http://192.168.0.102:8888';
+
   /// 發送圖片到 OCR API 進行效期辨識
   /// [imagePath] 圖片檔案路徑
   /// 返回 OCR 辨識結果

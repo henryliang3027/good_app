@@ -13,6 +13,8 @@ class InventoryRepository {
   static const String _endpoint =
       'https://gillian-unhesitative-jestine.ngrok-free.dev';
 
+  // static const String _endpoint = 'http://192.168.0.102:8888';
+
   /// 發送圖片到 OCR API 進行效期辨識
   /// [imagePath] 圖片檔案路徑
   /// [question] 用戶輸入的問題
@@ -31,10 +33,7 @@ class InventoryRepository {
 
     final response = await _dio.post(
       '$_endpoint/inventory_base64',
-      data: {
-        'image_base64': base64Image,
-        'question': question,
-      },
+      data: {'image_base64': base64Image, 'question': question},
       options: Options(
         headers: {'Content-Type': 'application/json'},
         sendTimeout: const Duration(seconds: 10),
