@@ -76,10 +76,12 @@ class ExpireDateBloc extends Bloc<ExpireDateEvent, ExpireDateState> {
     final double scaleX = originalImage.width / previewSize.width;
     final double scaleY = originalImage.height / previewSize.height;
 
-    final int cropX = ((previewSize.width - scanWidth) / 2 * scaleX).round();
-    final int cropY = ((previewSize.height - scanHeight) / 2 * scaleY).round();
-    final int cropW = (scanWidth * scaleX).round();
-    final int cropH = (scanHeight * scaleY).round();
+    final int cropX = ((previewSize.width - Constant.scanWidth) / 2 * scaleX)
+        .round();
+    final int cropY = ((previewSize.height - Constant.scanHeight) / 2 * scaleY)
+        .round();
+    final int cropW = (Constant.scanWidth * scaleX).round();
+    final int cropH = (Constant.scanHeight * scaleY).round();
 
     // 裁剪圖片
     final croppedImage = img.copyCrop(

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
+import 'package:good_app/core/constants.dart';
 import 'package:good_app/repository/api_exception_manager.dart';
 import 'package:good_app/repository/date_validator.dart';
 import 'package:good_app/repository/models/ocr_response.dart';
@@ -18,10 +19,6 @@ class ExpireDateRepository {
   final Dio _dio;
   final FlutterPpocrv5 _ppocrv5;
   bool _modelLoaded = false;
-  static const String _endpoint =
-      'https://gillian-unhesitative-jestine.ngrok-free.dev';
-
-  // static const String _endpoint = 'http://192.168.0.102:8888';
 
   /// 發送圖片到 OCR API 進行效期辨識
   /// [imagePath] 圖片檔案路徑
@@ -49,7 +46,7 @@ class ExpireDateRepository {
 
     try {
       final response = await _dio.post<Map<String, dynamic>>(
-        '$_endpoint/glm_ocr_inference_base64',
+        '${Constant.endpoint}/glm_ocr_inference_base64',
         data: {'image_base64': base64Image},
         options: Options(
           headers: {'Content-Type': 'application/json'},
@@ -63,8 +60,8 @@ class ExpireDateRepository {
       }
 
       return OcrResponse.fromJson(response.data!);
-    } on DioException catch (e) {
-      throw _handleDioException(e);
+    } on Exception catch (e) {
+      throw handleApiException(e);
     }
   }
 
@@ -149,35 +146,6 @@ class ExpireDateRepository {
       return DateValidator.extractMultipleDates(combinedText);
     } finally {
       await tempDir.delete(recursive: true);
-    }
-  }
-
-  ApiClientException _handleDioException(DioException e) {
-    switch (e.type) {
-      case DioExceptionType.connectionTimeout:
-      case DioExceptionType.sendTimeout:
-      case DioExceptionType.receiveTimeout:
-        return const RequestTimeoutException();
-
-      case DioExceptionType.connectionError:
-        return const ServerUnavailableException();
-
-      case DioExceptionType.badResponse:
-        final statusCode = e.response?.statusCode;
-        if (statusCode != null && statusCode >= 500) {
-          return ServerErrorException('伺服器錯誤 ($statusCode)');
-        }
-        return ServerErrorException('請求失敗 ($statusCode)');
-
-      case DioExceptionType.cancel:
-        return const ServerUnavailableException('請求已取消');
-
-      case DioExceptionType.unknown:
-      case DioExceptionType.badCertificate:
-        if (e.error is SocketException) {
-          return const ServerUnavailableException();
-        }
-        return ServerUnavailableException('網路錯誤: ${e.message}');
     }
   }
 }

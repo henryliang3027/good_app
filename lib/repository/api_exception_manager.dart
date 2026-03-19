@@ -1,3 +1,7 @@
+import 'dart:async';
+import 'dart:io';
+import 'package:dio/dio.dart';
+
 /// API 客戶端相關異常
 sealed class ApiClientException implements Exception {
   const ApiClientException(this.message);
@@ -25,4 +29,45 @@ class ServerErrorException extends ApiClientException {
 /// 圖片檔案異常
 class ImageFileException extends ApiClientException {
   const ImageFileException([super.message = '無法讀取圖片檔案']);
+}
+
+/// 將 [DioException] 或 [TimeoutException] 轉換為對應的 [ApiClientException]
+ApiClientException handleApiException(Exception e) {
+  if (e is TimeoutException) {
+    return const RequestTimeoutException();
+  }
+
+  if (e is DioException) {
+    switch (e.type) {
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.receiveTimeout:
+        return const RequestTimeoutException();
+
+      case DioExceptionType.connectionError:
+        return const ServerUnavailableException();
+
+      case DioExceptionType.badResponse:
+        final statusCode = e.response?.statusCode;
+        if (statusCode == 404) {
+          return const ServerUnavailableException('後端服務未啟動 (404)');
+        }
+        if (statusCode != null && statusCode >= 500) {
+          return ServerErrorException('伺服器錯誤 ($statusCode)');
+        }
+        return ServerErrorException('請求失敗 ($statusCode)');
+
+      case DioExceptionType.cancel:
+        return const ServerUnavailableException('請求已取消');
+
+      case DioExceptionType.unknown:
+      case DioExceptionType.badCertificate:
+        if (e.error is SocketException) {
+          return const ServerUnavailableException();
+        }
+        return ServerUnavailableException('網路錯誤: ${e.message}');
+    }
+  }
+
+  return ServerErrorException('未知錯誤: $e');
 }

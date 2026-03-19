@@ -169,15 +169,15 @@ class AppModeOverlay extends StatelessWidget {
           CustomPaint(
             size: previewSize,
             painter: ScanOverlayPainter(
-              scanWidth: scanWidth,
-              scanHeight: scanHeight,
+              scanWidth: Constant.scanWidth,
+              scanHeight: Constant.scanHeight,
             ),
           ),
           // 掃描框邊框
           Center(
             child: Container(
-              width: scanWidth,
-              height: scanHeight,
+              width: Constant.scanWidth,
+              height: Constant.scanHeight,
               decoration: BoxDecoration(
                 border: Border.all(color: Colors.green, width: 2),
                 borderRadius: BorderRadius.circular(4),
@@ -289,10 +289,13 @@ class AppModeOverlay extends StatelessWidget {
       // 計算裁剪區域，對齊偶數（UV 是半解析度）
       final double scaleX = srcW / previewSize.width;
       final double scaleY = srcH / previewSize.height;
-      int cropX = ((previewSize.width - scanWidth) / 2 * scaleX).round() & ~1;
-      int cropY = ((previewSize.height - scanHeight) / 2 * scaleY).round() & ~1;
-      int cropW = ((scanWidth * scaleX).round()) & ~1;
-      int cropH = ((scanHeight * scaleY).round()) & ~1;
+      int cropX =
+          ((previewSize.width - Constant.scanWidth) / 2 * scaleX).round() & ~1;
+      int cropY =
+          ((previewSize.height - Constant.scanHeight) / 2 * scaleY).round() &
+          ~1;
+      int cropW = ((Constant.scanWidth * scaleX).round()) & ~1;
+      int cropH = ((Constant.scanHeight * scaleY).round()) & ~1;
 
       // 邊界檢查
       cropX = cropX.clamp(0, srcW - 2);

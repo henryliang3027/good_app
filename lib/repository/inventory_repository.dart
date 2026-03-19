@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:good_app/core/constants.dart';
+import 'package:good_app/repository/api_exception_manager.dart';
 import 'package:good_app/repository/models/inventory_response.dart';
 import 'dart:developer' as developer;
 import 'package:image/image.dart' as img;
@@ -10,10 +12,6 @@ class InventoryRepository {
   InventoryRepository({Dio? dio}) : _dio = dio ?? Dio();
 
   final Dio _dio;
-  static const String _endpoint =
-      'https://gillian-unhesitative-jestine.ngrok-free.dev';
-
-  // static const String _endpoint = 'http://192.168.0.102:8888';
 
   /// 發送圖片到 OCR API 進行效期辨識
   /// [imagePath] 圖片檔案路徑
@@ -31,16 +29,18 @@ class InventoryRepository {
     //   print('Image size: ${decodedImage.width} x ${decodedImage.height}, ');
     // }
 
-    final response = await _dio.post(
-      '$_endpoint/inventory_base64',
-      data: {'image_base64': base64Image, 'question': question},
-      options: Options(
-        headers: {'Content-Type': 'application/json'},
-        sendTimeout: const Duration(seconds: 10),
-        receiveTimeout: const Duration(seconds: 10),
-      ),
-    );
+    try {
+      final response = await _dio
+          .post(
+            '${Constant.endpoint}/inventory_base64',
+            data: {'image_base64': base64Image, 'question': question},
+            options: Options(headers: {'Content-Type': 'application/json'}),
+          )
+          .timeout(const Duration(seconds: 10));
 
-    return InventoryResponse.fromJson(response.data);
+      return InventoryResponse.fromJson(response.data);
+    } on Exception catch (e) {
+      throw handleApiException(e);
+    }
   }
 }
