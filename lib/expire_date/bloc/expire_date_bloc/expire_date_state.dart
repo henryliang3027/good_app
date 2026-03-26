@@ -14,7 +14,7 @@ class ExpireDateState extends Equatable {
     this.errorMessage = '',
     this.ocrType = OcrType.local,
     this.appMode = AppMode.expireDate,
-    this.question = '統計圖中的商品',
+    this.question = '統計商品',
   });
 
   final FormStatus formStatus;

@@ -73,3 +73,10 @@ class OcrTypeChanged extends ExpireDateEvent {
   @override
   List<Object> get props => [ocrType];
 }
+
+class CameraResumed extends ExpireDateEvent {
+  const CameraResumed();
+
+  @override
+  List<Object> get props => [];
+}

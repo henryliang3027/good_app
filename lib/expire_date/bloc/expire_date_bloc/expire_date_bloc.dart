@@ -31,6 +31,7 @@ class ExpireDateBloc extends Bloc<ExpireDateEvent, ExpireDateState> {
     on<AppModeChanged>(_onAppModeChanged);
     on<QuestionChanged>(_onQuestionChanged);
     on<OcrTypeChanged>(_onOcrTypeChanged);
+    on<CameraResumed>(_onCameraResumed);
     add(ExpireDateInitialize());
   }
 
@@ -265,6 +266,7 @@ class ExpireDateBloc extends Bloc<ExpireDateEvent, ExpireDateState> {
     AppModeChanged event,
     Emitter<ExpireDateState> emit,
   ) async {
+    emit(state.copyWith(formStatus: FormStatus.requestInProgress));
     state.cameraController!.dispose();
 
     List<CameraDescription> cameraDescriptions = await availableCameras();
@@ -280,7 +282,11 @@ class ExpireDateBloc extends Bloc<ExpireDateEvent, ExpireDateState> {
       controller.setFlashMode(FlashMode.off);
 
       emit(
-        state.copyWith(appMode: event.appMode, cameraController: controller),
+        state.copyWith(
+          formStatus: FormStatus.requestSuccess,
+          appMode: event.appMode,
+          cameraController: controller,
+        ),
       );
     } else {
       CameraDescription cameraDescription = cameraDescriptions[0];
@@ -292,7 +298,11 @@ class ExpireDateBloc extends Bloc<ExpireDateEvent, ExpireDateState> {
       await controller.initialize();
       controller.setFlashMode(FlashMode.off);
       emit(
-        state.copyWith(appMode: event.appMode, cameraController: controller),
+        state.copyWith(
+          formStatus: FormStatus.requestSuccess,
+          appMode: event.appMode,
+          cameraController: controller,
+        ),
       );
     }
   }
@@ -304,10 +314,40 @@ class ExpireDateBloc extends Bloc<ExpireDateEvent, ExpireDateState> {
     emit(state.copyWith(question: event.question));
   }
 
+  Future<void> _onCameraResumed(
+    CameraResumed event,
+    Emitter<ExpireDateState> emit,
+  ) async {
+    emit(state.copyWith(formStatus: FormStatus.requestInProgress));
+    try {
+      state.cameraController?.dispose();
+    } catch (_) {}
+
+    List<CameraDescription> cameraDescriptions = await availableCameras();
+    CameraDescription cameraDescription = cameraDescriptions[0];
+    final preset = state.appMode == AppMode.inventory
+        ? ResolutionPreset.high
+        : ResolutionPreset.medium;
+    CameraController controller = CameraController(
+      cameraDescription,
+      preset,
+    );
+    await controller.initialize();
+    controller.setFlashMode(FlashMode.off);
+
+    emit(
+      state.copyWith(
+        formStatus: FormStatus.requestSuccess,
+        cameraController: controller,
+      ),
+    );
+  }
+
   Future<void> _onOcrTypeChanged(
     OcrTypeChanged event,
     Emitter<ExpireDateState> emit,
   ) async {
+    emit(state.copyWith(formStatus: FormStatus.requestInProgress));
     state.cameraController!.dispose();
     List<CameraDescription> cameraDescriptions = await availableCameras();
     CameraDescription cameraDescription = cameraDescriptions[0];
@@ -319,6 +359,12 @@ class ExpireDateBloc extends Bloc<ExpireDateEvent, ExpireDateState> {
     await controller.initialize();
     controller.setFlashMode(FlashMode.off);
 
-    emit(state.copyWith(cameraController: controller, ocrType: event.ocrType));
+    emit(
+      state.copyWith(
+        formStatus: FormStatus.requestSuccess,
+        cameraController: controller,
+        ocrType: event.ocrType,
+      ),
+    );
   }
 }

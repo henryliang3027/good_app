@@ -87,8 +87,45 @@ class _FrameStabilityDetector {
 
 final _stabilityDetector = _FrameStabilityDetector();
 
-class ExpireDateView extends StatelessWidget {
+class ExpireDateView extends StatefulWidget {
   const ExpireDateView({super.key});
+
+  @override
+  State<ExpireDateView> createState() => _ExpireDateViewState();
+}
+
+class _ExpireDateViewState extends State<ExpireDateView>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    final bloc = context.read<ExpireDateBloc>();
+    switch (state) {
+      case AppLifecycleState.paused:
+        final controller = bloc.state.cameraController;
+        if (controller != null && controller.value.isStreamingImages) {
+          controller.stopImageStream();
+        }
+        break;
+      case AppLifecycleState.resumed:
+        bloc.add(const CameraResumed());
+        break;
+      default:
+        break;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -423,7 +460,8 @@ class AppModeOverlay extends StatelessWidget {
       buildWhen: (previous, current) =>
           previous.formStatus != current.formStatus ||
           previous.appMode != current.appMode ||
-          previous.ocrType != current.ocrType,
+          previous.ocrType != current.ocrType ||
+          previous.cameraController != current.cameraController,
       builder: (context, state) {
         if (state.formStatus.isRequestSuccess) {
           if (state.appMode == AppMode.expireDate) {
