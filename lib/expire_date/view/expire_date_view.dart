@@ -14,11 +14,6 @@ import 'package:good_app/expire_date/bloc/expire_date_bloc/expire_date_bloc.dart
 import 'package:good_app/repository/models/ocr_response.dart';
 import 'package:image/image.dart' as img;
 
-/// Debug: 儲存最新的 crop 圖片
-final ValueNotifier<Uint8List?> _debugCroppedImageNotifier = ValueNotifier(
-  null,
-);
-
 /// 儲存最新的 crop NV21 資料，供拍照按鈕取用
 ({Uint8List nv21Bytes, int width, int height})? _latestCropped;
 
@@ -26,7 +21,6 @@ final ValueNotifier<Uint8List?> _debugCroppedImageNotifier = ValueNotifier(
 class _FrameStabilityDetector {
   Uint8List? _prevYData;
   int _stableFrameCount = 0;
-  bool _triggered = false;
   DateTime _lastTriggerTime = DateTime(0);
 
   /// 每 N 個像素取樣一次，加速比較
@@ -81,7 +75,6 @@ class _FrameStabilityDetector {
   void reset() {
     _prevYData = null;
     _stableFrameCount = 0;
-    _triggered = false;
   }
 }
 
@@ -564,21 +557,6 @@ class TakePictureFloatingActionButton extends StatelessWidget {
               : const Icon(Icons.camera_alt),
         );
 
-        if (state.appMode == AppMode.inventory) {
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              FloatingActionButton(
-                heroTag: 'question_button',
-                onPressed: () => _showQuestionDialog(context),
-                child: const Icon(Icons.question_answer),
-              ),
-              const SizedBox(height: 16),
-              cameraButton,
-            ],
-          );
-        }
-
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: state.appMode == AppMode.inventory
@@ -588,6 +566,7 @@ class TakePictureFloatingActionButton extends StatelessWidget {
                     onPressed: () => _showQuestionDialog(context),
                     child: const Icon(Icons.question_answer),
                   ),
+                  const SizedBox(height: 16),
                   cameraButton,
                 ]
               : [],
